@@ -19,6 +19,8 @@ target/
 *.iml
 *.ipr
 src/main/resources/application.properties
+agent/argus-agent-test.sh
+agent/argus-agent-loop.sh
 
 ### NetBeans ###
 /nbproject/private/
