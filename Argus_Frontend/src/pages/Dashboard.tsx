@@ -1,5 +1,5 @@
 // Dashboard - Main monitoring overview page
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { MetricCard } from '@/components/MetricCard';
@@ -16,13 +16,56 @@ import {
   Loader2
 } from 'lucide-react';
 import { serversApi, alertsApi, Server as ServerType, Alert } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtime } from '@/hooks/use-realtime';
 
 export default function Dashboard() {
   const [servers, setServers] = useState<ServerType[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  const realtimeSubscriptions = useMemo(() => {
+    if (!user) return [];
+
+    return [
+      {
+        topic: `/topic/servers/user/${user.id}`,
+        onMessage: (server: ServerType) => {
+          setServers((prev) => {
+            const index = prev.findIndex((s) => s.id === server.id);
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = server;
+              return next;
+            }
+            return [server, ...prev];
+          });
+        },
+      },
+      {
+        topic: `/topic/alerts/user/${user.id}`,
+        onMessage: (alert: Alert) => {
+          setAlerts((prev) => {
+            if (alert.status === 'RESOLVED') {
+              return prev.filter((a) => a.id !== alert.id);
+            }
+            const index = prev.findIndex((a) => a.id === alert.id);
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = alert;
+              return next;
+            }
+            return [alert, ...prev];
+          });
+        },
+      },
+    ];
+  }, [user]);
+
+  useRealtime(realtimeSubscriptions, !!user);
 
   const fetchData = async () => {
     try {
