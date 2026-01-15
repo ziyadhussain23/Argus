@@ -1,8 +1,8 @@
-# Welcome to your Lovable project
+# Argus Frontend
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**Description**: Monitoring and alerting dashboard for Argus server monitoring system
 
 ## How can I edit this code?
 
