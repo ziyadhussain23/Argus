@@ -7,6 +7,7 @@ import nightswatch.argus.dto.response.MetricResponse;
 import nightswatch.argus.entity.Metric;
 import nightswatch.argus.entity.Server;
 import nightswatch.argus.repository.MetricRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class MetricService {
     private final MetricRepository metricRepository;
     private final ServerService serverService;
     private final AlertEvaluationService alertEvaluationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${argus.metrics.retention-days:30}")
     private int retentionDays;
@@ -59,6 +61,12 @@ public class MetricService {
         
         // Evaluate alert rules for incoming metrics
         alertEvaluationService.evaluateMetrics(server, metrics);
+
+        // Publish real-time metrics updates
+        List<MetricResponse> responses = metrics.stream()
+            .map(MetricResponse::fromEntity)
+            .toList();
+        messagingTemplate.convertAndSend("/topic/servers/" + server.getId() + "/metrics", responses);
         
         log.debug("Ingested {} metrics for server: {}", metrics.size(), server.getName());
     }
