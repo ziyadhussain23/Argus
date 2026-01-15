@@ -2,10 +2,12 @@ package nightswatch.argus.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import nightswatch.argus.dto.response.AlertResponse;
 import nightswatch.argus.entity.*;
 import nightswatch.argus.repository.AlertRepository;
 import nightswatch.argus.repository.AlertRuleRepository;
 import nightswatch.argus.repository.MetricRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,8 @@ public class AlertEvaluationService {
     private final AlertRepository alertRepository;
     private final MetricRepository metricRepository;
     private final NotificationService notificationService;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final ServerService serverService;
 
     @Transactional
     public void evaluateMetrics(Server server, List<Metric> metrics) {
@@ -123,6 +127,8 @@ public class AlertEvaluationService {
         
         // Send notification
         notificationService.sendAlertNotification(alert);
+
+        publishAlertUpdate(alert);
     }
 
     private void autoResolveAlert(AlertRule rule) {
@@ -133,6 +139,9 @@ public class AlertEvaluationService {
             alert.resolve();
             alertRepository.save(alert);
             log.info("Auto-resolved alert: {}", alert.getTitle());
+
+            updateServerStatusAfterAlertChange(alert.getServer());
+            publishAlertUpdate(alert);
         }
     }
 
@@ -144,7 +153,31 @@ public class AlertEvaluationService {
         };
         
         if (newStatus != server.getStatus()) {
-            server.setStatus(newStatus);
+            serverService.updateServerStatus(server, newStatus);
         }
+    }
+
+    private void updateServerStatusAfterAlertChange(Server server) {
+        if (server.getStatus() == Server.ServerStatus.OFFLINE) {
+            return;
+        }
+
+        List<Alert> activeAlerts = alertRepository.findByServerAndStatus(server, Alert.AlertStatus.ACTIVE);
+        boolean hasCritical = activeAlerts.stream().anyMatch(a -> a.getSeverity() == AlertRule.AlertSeverity.CRITICAL);
+        boolean hasWarning = activeAlerts.stream().anyMatch(a -> a.getSeverity() == AlertRule.AlertSeverity.WARNING);
+
+        Server.ServerStatus status = hasCritical
+                ? Server.ServerStatus.CRITICAL
+                : hasWarning ? Server.ServerStatus.WARNING : Server.ServerStatus.ONLINE;
+
+        if (server.getStatus() != status) {
+            serverService.updateServerStatus(server, status);
+        }
+    }
+
+    private void publishAlertUpdate(Alert alert) {
+        AlertResponse payload = AlertResponse.fromEntity(alert);
+        messagingTemplate.convertAndSend("/topic/alerts/server/" + alert.getServer().getId(), payload);
+        messagingTemplate.convertAndSend("/topic/alerts/user/" + alert.getServer().getOwner().getId(), payload);
     }
 }

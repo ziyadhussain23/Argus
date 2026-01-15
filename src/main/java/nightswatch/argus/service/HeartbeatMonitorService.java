@@ -21,6 +21,7 @@ import java.util.List;
 public class HeartbeatMonitorService {
 
     private final ServerRepository serverRepository;
+    private final ServerService serverService;
 
     // Mark server as offline if no heartbeat for 2 minutes
     private static final int HEARTBEAT_THRESHOLD_SECONDS = 120;
@@ -39,8 +40,7 @@ public class HeartbeatMonitorService {
                 log.warn("Server {} has not sent heartbeat since {}, marking as OFFLINE", 
                         server.getName(), server.getLastHeartbeat());
                 
-                server.setStatus(Server.ServerStatus.OFFLINE);
-                serverRepository.save(server);
+                serverService.updateServerStatus(server, Server.ServerStatus.OFFLINE);
             }
         }
     }

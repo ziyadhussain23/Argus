@@ -4,10 +4,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nightswatch.argus.dto.request.ServerRegistrationRequest;
 import nightswatch.argus.dto.response.ServerResponse;
+import nightswatch.argus.entity.Alert;
+import nightswatch.argus.entity.AlertRule;
 import nightswatch.argus.entity.Server;
 import nightswatch.argus.entity.User;
 import nightswatch.argus.repository.AlertRepository;
 import nightswatch.argus.repository.ServerRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,7 @@ public class ServerService {
 
     private final ServerRepository serverRepository;
     private final AlertRepository alertRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public ServerResponse registerServer(ServerRegistrationRequest request, User owner) {
@@ -67,14 +71,16 @@ public class ServerService {
     @Transactional
     public void updateHeartbeat(Server server) {
         server.setLastHeartbeat(LocalDateTime.now());
-        server.setStatus(Server.ServerStatus.ONLINE);
+        server.setStatus(resolveStatusFromActiveAlerts(server));
         serverRepository.save(server);
+        publishServerUpdate(server);
     }
 
     @Transactional
     public void updateServerStatus(Server server, Server.ServerStatus status) {
         server.setStatus(status);
         serverRepository.save(server);
+        publishServerUpdate(server);
     }
 
     @Transactional
@@ -101,6 +107,7 @@ public class ServerService {
         String newKey = generateAgentKey();
         server.setAgentKey(newKey);
         serverRepository.save(server);
+        publishServerUpdate(server);
         
         log.info("Regenerated agent key for server: {}", server.getName());
         return newKey;
@@ -115,5 +122,26 @@ public class ServerService {
         Long activeAlerts = alertRepository.countActiveAlertsByUser(server.getOwner().getId());
         response.setActiveAlerts(activeAlerts);
         return response;
+    }
+
+    private Server.ServerStatus resolveStatusFromActiveAlerts(Server server) {
+        List<Alert> activeAlerts = alertRepository.findByServerAndStatus(server, Alert.AlertStatus.ACTIVE);
+
+        boolean hasCritical = activeAlerts.stream().anyMatch(a -> a.getSeverity() == AlertRule.AlertSeverity.CRITICAL);
+        boolean hasWarning = activeAlerts.stream().anyMatch(a -> a.getSeverity() == AlertRule.AlertSeverity.WARNING);
+
+        if (hasCritical) {
+            return Server.ServerStatus.CRITICAL;
+        }
+        if (hasWarning) {
+            return Server.ServerStatus.WARNING;
+        }
+        return Server.ServerStatus.ONLINE;
+    }
+
+    private void publishServerUpdate(Server server) {
+        ServerResponse payload = toResponseWithAlertCount(server);
+        messagingTemplate.convertAndSend("/topic/servers/" + server.getId(), payload);
+        messagingTemplate.convertAndSend("/topic/servers/user/" + server.getOwner().getId(), payload);
     }
 }

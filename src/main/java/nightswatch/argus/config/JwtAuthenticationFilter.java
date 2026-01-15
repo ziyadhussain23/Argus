@@ -79,6 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Skip filtering for public endpoints
         return path.startsWith("/api/v1/auth/") || 
                path.startsWith("/api/v1/metrics/") ||
+               path.startsWith("/ws/") ||
                path.equals("/actuator/health");
     }
 }

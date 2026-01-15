@@ -61,6 +61,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/metrics/**").permitAll()
                 // Allow health check
                 .requestMatchers("/actuator/health").permitAll()
+                // Allow WebSocket handshake
+                .requestMatchers("/ws/**").permitAll()
                 // Public endpoints for auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Require authentication for everything else

@@ -11,6 +11,7 @@ import nightswatch.argus.entity.User;
 import nightswatch.argus.repository.AlertRepository;
 import nightswatch.argus.repository.AlertRuleRepository;
 import nightswatch.argus.repository.ServerRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class AlertService {
     private final AlertRepository alertRepository;
     private final AlertRuleRepository alertRuleRepository;
     private final ServerRepository serverRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     public AlertRule createAlertRule(AlertRuleRequest request, User owner) {
@@ -123,6 +125,8 @@ public class AlertService {
         alert.acknowledge(user);
         alertRepository.save(alert);
         log.info("Alert {} acknowledged by {}", alertId, user.getUsername());
+
+        publishAlertUpdate(alert);
     }
 
     @Transactional
@@ -137,5 +141,13 @@ public class AlertService {
         alert.resolve();
         alertRepository.save(alert);
         log.info("Alert {} resolved by {}", alertId, user.getUsername());
+
+        publishAlertUpdate(alert);
+    }
+
+    private void publishAlertUpdate(Alert alert) {
+        AlertResponse payload = AlertResponse.fromEntity(alert);
+        messagingTemplate.convertAndSend("/topic/alerts/server/" + alert.getServer().getId(), payload);
+        messagingTemplate.convertAndSend("/topic/alerts/user/" + alert.getServer().getOwner().getId(), payload);
     }
 }

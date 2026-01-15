@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { serversApi, alertsApi, Server as ServerType, Alert, Metric } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtime } from '@/hooks/use-realtime';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
@@ -51,6 +52,68 @@ export default function ServerDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const realtimeSubscriptions = useMemo(() => {
+    if (!id) return [];
+    const serverId = Number(id);
+
+    return [
+      {
+        topic: `/topic/servers/${serverId}`,
+        onMessage: (updated: ServerType) => {
+          setServer((prev) => (prev ? { ...prev, ...updated } : updated));
+        },
+      },
+      {
+        topic: `/topic/servers/${serverId}/metrics`,
+        onMessage: (incoming: Metric[]) => {
+          if (!incoming || incoming.length === 0) return;
+
+          setMetrics((prev) => {
+            const next = { ...prev };
+
+            incoming.forEach((metric) => {
+              const list = next[metric.metricType] ? [...next[metric.metricType]] : [];
+              list.push(metric);
+              if (list.length > 60) {
+                list.splice(0, list.length - 60);
+              }
+              next[metric.metricType] = list;
+            });
+
+            return next;
+          });
+
+          setLatestMetrics((prev) => {
+            const next = { ...prev };
+            incoming.forEach((metric) => {
+              next[metric.metricType] = metric;
+            });
+            return next;
+          });
+        },
+      },
+      {
+        topic: `/topic/alerts/server/${serverId}`,
+        onMessage: (alert: Alert) => {
+          setAlerts((prev) => {
+            if (alert.status === 'RESOLVED') {
+              return prev.filter((a) => a.id !== alert.id);
+            }
+            const index = prev.findIndex((a) => a.id === alert.id);
+            if (index >= 0) {
+              const next = [...prev];
+              next[index] = alert;
+              return next;
+            }
+            return [alert, ...prev];
+          });
+        },
+      },
+    ];
+  }, [id]);
+
+  useRealtime(realtimeSubscriptions, !!id);
 
   const fetchData = async () => {
     if (!id) return;

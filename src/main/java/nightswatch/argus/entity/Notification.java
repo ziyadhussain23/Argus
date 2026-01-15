@@ -42,7 +42,7 @@ public class Notification {
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
 
-    @Column(name = "error_message")
+    @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
     @Builder.Default
@@ -75,7 +75,7 @@ public class Notification {
 
     public void markFailed(String error) {
         this.status = NotificationStatus.FAILED;
-        this.errorMessage = error;
+        this.errorMessage = error != null && error.length() > 5000 ? error.substring(0, 5000) : error;
         this.retryCount++;
     }
 }
