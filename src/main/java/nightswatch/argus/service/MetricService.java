@@ -32,6 +32,9 @@ public class MetricService {
     @Value("${argus.metrics.retention-days:30}")
     private int retentionDays;
 
+    @Value("${argus.metrics.cleanup-enabled:true}")
+    private boolean cleanupEnabled;
+
     @Transactional
     public void ingestMetrics(MetricPayload payload) {
         Server server = serverService.getServerByAgentKey(payload.getAgentKey());
@@ -100,8 +103,13 @@ public class MetricService {
     @Scheduled(cron = "0 0 2 * * ?") // Run at 2 AM every day
     @Transactional
     public void cleanupOldMetrics() {
+        if (!cleanupEnabled) {
+            log.info("Metric cleanup is disabled; skipping run");
+            return;
+        }
+
         LocalDateTime threshold = LocalDateTime.now().minusDays(retentionDays);
         int deleted = metricRepository.deleteOldMetrics(threshold);
-        log.info("Cleaned up {} old metrics (older than {} days)", deleted, retentionDays);
+        log.info("Cleaned up {} old metrics (older than {} days, threshold before {})", deleted, retentionDays, threshold);
     }
 }

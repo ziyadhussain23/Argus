@@ -78,7 +78,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         // Skip filtering for public endpoints
         return path.startsWith("/api/v1/auth/") || 
-               path.startsWith("/api/v1/metrics/") ||
+               path.equals("/api/v1/metrics/ingest") ||
+               path.equals("/api/v1/metrics/heartbeat") ||
                path.startsWith("/ws/") ||
                path.equals("/actuator/health");
     }
