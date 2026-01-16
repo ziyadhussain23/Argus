@@ -17,6 +17,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -57,8 +58,8 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Allow metric ingestion from agents (authenticated via agentKey in payload)
-                .requestMatchers("/api/v1/metrics/**").permitAll()
+                // Allow metric ingestion/heartbeat from agents (authenticated via agentKey in payload)
+                .requestMatchers(HttpMethod.POST, "/api/v1/metrics/ingest", "/api/v1/metrics/heartbeat").permitAll()
                 // Allow health check
                 .requestMatchers("/actuator/health").permitAll()
                 // Allow WebSocket handshake
