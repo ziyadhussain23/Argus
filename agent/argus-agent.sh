@@ -13,9 +13,16 @@
 # 4. Add to crontab: */1 * * * * /path/to/argus-agent.sh
 #######################################################
 
-# Configuration - UPDATE THESE VALUES
-ARGUS_SERVER_URL="http://your-argus-server:8080"
-AGENT_KEY="your-agent-key-here"
+# Configuration - Environment variables override these defaults
+ARGUS_SERVER_URL="${ARGUS_SERVER_URL:-http://localhost:8080}"
+AGENT_KEY="${AGENT_KEY:-your-agent-key-here}"
+
+# Check if keys are set
+if [ "$AGENT_KEY" = "your-agent-key-here" ]; then
+    echo "Error: AGENT_KEY is not set. Please set it in the script or via environment variable."
+    echo "Usage: AGENT_KEY=your-key ARGUS_SERVER_URL=http://server:port bash argus-agent.sh"
+    exit 1
+fi
 
 # Collect CPU Usage
 get_cpu_usage() {
@@ -36,8 +43,9 @@ get_memory_usage() {
 
 # Collect Disk Usage
 get_disk_usage() {
-    # Get root partition usage
-    disk_info=$(df -h / | awk 'NR==2{gsub("%",""); printf "%.2f %s %s", $5, $2, $4}')
+    # Get root partition usage in MB
+    # Returns: used_percent total_mb available_mb
+    disk_info=$(df -m / | awk 'NR==2{gsub("%",""); printf "%.2f %d %d", $5, $2, $4}')
     echo "$disk_info"
 }
 
@@ -81,6 +89,8 @@ main() {
     
     disk_info=$(get_disk_usage)
     disk_usage=$(echo $disk_info | awk '{print $1}')
+    disk_total=$(echo $disk_info | awk '{print $2}')
+    disk_available=$(echo $disk_info | awk '{print $3}')
     
     network_io=$(get_network_io)
     net_in=$(echo $network_io | awk '{print $1}')
@@ -104,6 +114,8 @@ main() {
         {"type": "MEMORY_TOTAL", "value": $mem_total, "unit": "MB"},
         {"type": "MEMORY_AVAILABLE", "value": $mem_available, "unit": "MB"},
         {"type": "DISK_USAGE", "value": $disk_usage, "unit": "%"},
+        {"type": "DISK_TOTAL", "value": $disk_total, "unit": "MB"},
+        {"type": "DISK_AVAILABLE", "value": $disk_available, "unit": "MB"},
         {"type": "NETWORK_IN", "value": $net_in, "unit": "bytes"},
         {"type": "NETWORK_OUT", "value": $net_out, "unit": "bytes"},
         {"type": "PROCESS_COUNT", "value": $process_count, "unit": "count"},
