@@ -19,12 +19,20 @@ import {
   MemoryStick,
   Network,
   Clock,
-  Activity
+  Activity,
+  Terminal
 } from 'lucide-react';
 import { serversApi, alertsApi, Server as ServerType, Alert, Metric } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtime } from '@/hooks/use-realtime';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -309,6 +317,40 @@ export default function ServerDetail() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+
+        {/* Installation Instructions */}
+        {server.status === 'OFFLINE' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-lg">Agent Installation</CardTitle>
+              </div>
+              <CardDescription>
+                Run this command on your server to install the agent and start sending metrics.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="relative rounded-md bg-muted p-4 pr-12 font-mono text-sm max-w-full overflow-x-auto">
+                <p className="whitespace-pre-wrap break-all">
+                  curl -sSL https://raw.githubusercontent.com/nightswatch/Argus/main/agent/argus-agent.sh | ARGUS_SERVER_URL=http://localhost:8080 AGENT_KEY={server.agentKey} bash
+                </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2 top-2 h-8 w-8 bg-background/50 hover:bg-background"
+                  onClick={() => {
+                    const command = `curl -sSL https://raw.githubusercontent.com/nightswatch/Argus/main/agent/argus-agent.sh | ARGUS_SERVER_URL=http://localhost:8080 AGENT_KEY=${server.agentKey} bash`;
+                    navigator.clipboard.writeText(command);
+                    toast({ title: 'Command copied!' });
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Metrics Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
