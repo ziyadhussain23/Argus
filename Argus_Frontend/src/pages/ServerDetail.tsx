@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { formatDistanceToNow } from 'date-fns';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MetricCard } from '@/components/MetricCard';
@@ -17,78 +18,75 @@ import {
   Cpu,
   HardDrive,
   MemoryStick,
-  Network,
   Clock,
   Activity,
-  Terminal
+  Terminal,
 } from 'lucide-react';
-import { serversApi, alertsApi, Server as ServerType, Alert, Metric } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
-import { useRealtime } from '@/hooks/use-realtime';
-import { formatDistanceToNow } from 'date-fns';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
+import { serversApi, alertsApi, type Server as ServerType, type Alert, type Metric } from '@/lib/api';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogTrigger,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useToast } from '@/hooks/use-toast';
+import { useRealtime } from '@/hooks/use-realtime';
+import { RealtimeSubscription } from '@/hooks/use-realtime';
+import { LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
 
-const METRIC_TYPES = ['CPU_USAGE', 'MEMORY_USAGE', 'DISK_USAGE', 'LOAD_AVERAGE'];
+const METRIC_TYPES = [
+  'CPU_USAGE',
+  'MEMORY_USAGE',
+  'DISK_USAGE',
+  'LOAD_AVERAGE',
+  'PROCESS_COUNT',
+  'UPTIME',
+  'MEMORY_TOTAL',
+  'MEMORY_AVAILABLE',
+  'DISK_TOTAL',
+  'DISK_AVAILABLE',
+];
+
+type MetricMap = Record<string, Metric[]>;
+type MetricLatestMap = Record<string, Metric>;
 
 export default function ServerDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [server, setServer] = useState<ServerType | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [metrics, setMetrics] = useState<Record<string, Metric[]>>({});
-  const [latestMetrics, setLatestMetrics] = useState<Record<string, Metric>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [metrics, setMetrics] = useState<MetricMap>({});
+  const [latestMetrics, setLatestMetrics] = useState<MetricLatestMap>({});
   const [copied, setCopied] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const realtimeSubscriptions = useMemo(() => {
-    if (!id) return [];
-    const serverId = Number(id);
+  const serverId = id ? Number(id) : null;
+
+  const realtimeSubscriptions = useMemo<RealtimeSubscription[]>(() => {
+    if (!serverId) return [];
 
     return [
       {
-        topic: `/topic/servers/${serverId}`,
-        onMessage: (updated: ServerType) => {
-          setServer((prev) => (prev ? { ...prev, ...updated } : updated));
-        },
-      },
-      {
-        topic: `/topic/servers/${serverId}/metrics`,
+        topic: `/topic/metrics/server/${serverId}`,
         onMessage: (incoming: Metric[]) => {
-          if (!incoming || incoming.length === 0) return;
-
           setMetrics((prev) => {
             const next = { ...prev };
-
             incoming.forEach((metric) => {
-              const list = next[metric.metricType] ? [...next[metric.metricType]] : [];
-              list.push(metric);
+              const list = [ ...(next[metric.metricType] || []), metric ];
               if (list.length > 60) {
                 list.splice(0, list.length - 60);
               }
               next[metric.metricType] = list;
             });
-
             return next;
           });
 
@@ -119,28 +117,27 @@ export default function ServerDetail() {
         },
       },
     ];
-  }, [id]);
+  }, [serverId]);
 
-  useRealtime(realtimeSubscriptions, !!id);
+  useRealtime(realtimeSubscriptions, !!serverId);
 
   const fetchData = async () => {
-    if (!id) return;
+    if (!serverId) return;
     
     try {
       const [serverRes, alertsRes] = await Promise.all([
-        serversApi.getById(Number(id)),
-        alertsApi.getByServer(Number(id)),
+        serversApi.getById(serverId),
+        alertsApi.getByServer(serverId),
       ]);
 
       if (serverRes.success) setServer(serverRes.data);
       if (alertsRes.success) setAlerts(alertsRes.data.filter(a => a.status !== 'RESOLVED'));
 
-      // Fetch metrics for each type
       const metricsPromises = METRIC_TYPES.map(type =>
-        serversApi.getMetrics(Number(id), { type }).catch(() => ({ success: false, data: [] }))
+        serversApi.getMetrics(serverId, { type }).catch(() => ({ success: false, data: [] }))
       );
       const latestPromises = METRIC_TYPES.map(type =>
-        serversApi.getLatestMetric(Number(id), type).catch(() => ({ success: false, data: null }))
+        serversApi.getLatestMetric(serverId, type).catch(() => ({ success: false, data: null }))
       );
 
       const metricsResults = await Promise.all(metricsPromises);
@@ -263,6 +260,27 @@ export default function ServerDetail() {
     time: new Date(m.timestamp).toLocaleTimeString(),
     value: m.value,
   }));
+
+  const memoryChartData = (metrics['MEMORY_USAGE'] || []).map(m => ({
+    time: new Date(m.timestamp).toLocaleTimeString(),
+    value: m.value,
+  }));
+
+  // Calculate disk and memory info
+  const memoryTotal = latestMetrics['MEMORY_TOTAL']?.value ?? 0;
+  const memoryAvailable = latestMetrics['MEMORY_AVAILABLE']?.value ?? 0;
+  const memoryUsed = memoryTotal - memoryAvailable;
+
+  const diskTotal = latestMetrics['DISK_TOTAL']?.value ?? 0;
+  const diskAvailable = latestMetrics['DISK_AVAILABLE']?.value ?? 0;
+  const diskUsed = diskTotal - diskAvailable;
+
+  const formatSize = (mb: number) => {
+    if (mb >= 1024) {
+      return `${(mb / 1024).toFixed(1)} GB`;
+    }
+    return `${mb.toFixed(0)} MB`;
+  };
 
   return (
     <MainLayout>
@@ -393,7 +411,7 @@ export default function ServerDetail() {
 
         {/* CPU Chart */}
         {cpuChartData.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-6">
+          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
             <h3 className="font-display text-lg font-semibold text-foreground mb-4">
               CPU Usage Over Time
             </h3>
@@ -431,9 +449,159 @@ export default function ServerDetail() {
           </div>
         )}
 
+        {/* Memory Chart */}
+        {memoryChartData.length > 0 && (
+          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
+            <h3 className="font-display text-lg font-semibold text-foreground mb-4">
+              Memory Usage Over Time
+            </h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={memoryChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke="hsl(142 76% 36%)" 
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Disk & Memory Info */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Memory Information */}
+          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <MemoryStick className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-lg font-semibold text-foreground">
+                Memory Information
+              </h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-semibold text-foreground">{formatSize(memoryTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Used</span>
+                <span className="font-semibold text-warning">{formatSize(memoryUsed)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Available</span>
+                <span className="font-semibold text-success">{formatSize(memoryAvailable)}</span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${memoryTotal > 0 ? (memoryUsed / memoryTotal) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Disk Information */}
+          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <HardDrive className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-lg font-semibold text-foreground">
+                Disk Information
+              </h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-semibold text-foreground">{formatSize(diskTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Used</span>
+                <span className="font-semibold text-warning">{formatSize(diskUsed)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Available</span>
+                <span className="font-semibold text-success">{formatSize(diskAvailable)}</span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                  style={{ width: `${diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Server Info */}
+          {/* CPU & System Info */}
           <div className="space-y-6">
+            {/* CPU Information */}
+            <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Cpu className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  CPU Information
+                </h3>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Processor</span>
+                  <span className="text-foreground font-medium">{server.operatingSystem || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Current Usage</span>
+                  <span className={`font-semibold ${
+                    (latestMetrics['CPU_USAGE']?.value ?? 0) > 80 ? 'text-critical' :
+                    (latestMetrics['CPU_USAGE']?.value ?? 0) > 60 ? 'text-warning' : 'text-success'
+                  }`}>
+                    {latestMetrics['CPU_USAGE']?.value?.toFixed(1) ?? '--'}%
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Load Average</span>
+                  <span className="text-foreground font-medium">
+                    {latestMetrics['LOAD_AVERAGE']?.value?.toFixed(2) ?? '--'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Process Count</span>
+                  <span className="text-foreground font-medium">
+                    {latestMetrics['PROCESS_COUNT']?.value?.toFixed(0) ?? '--'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Uptime</span>
+                  <span className="text-foreground font-medium">
+                    {latestMetrics['UPTIME']?.value 
+                      ? `${Math.floor(latestMetrics['UPTIME'].value / 86400)}d ${Math.floor((latestMetrics['UPTIME'].value % 86400) / 3600)}h`
+                      : '--'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Server Info */}
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <h3 className="font-display text-lg font-semibold text-foreground">
                 Server Information
@@ -493,6 +661,7 @@ export default function ServerDetail() {
                 Use this key to configure the Argus agent on your server.
               </p>
             </div>
+
           </div>
 
           {/* Active Alerts */}
