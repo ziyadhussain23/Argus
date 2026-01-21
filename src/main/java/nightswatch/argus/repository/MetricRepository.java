@@ -2,6 +2,7 @@ package nightswatch.argus.repository;
 
 import nightswatch.argus.entity.Metric;
 import nightswatch.argus.entity.Server;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -20,8 +21,13 @@ public interface MetricRepository extends JpaRepository<Metric, Long> {
     @Query("SELECT m FROM Metric m WHERE m.server = :server AND m.metricType = :type ORDER BY m.timestamp DESC")
     List<Metric> findByServerAndType(@Param("server") Server server, @Param("type") Metric.MetricType type);
     
-    @Query("SELECT m FROM Metric m WHERE m.server = :server AND m.metricType = :type ORDER BY m.timestamp DESC LIMIT 1")
-    Optional<Metric> findLatestByServerAndType(@Param("server") Server server, @Param("type") Metric.MetricType type);
+    @Query("SELECT m FROM Metric m WHERE m.server = :server AND m.metricType = :type ORDER BY m.timestamp DESC")
+    List<Metric> findLatestByServerAndTypeWithLimit(@Param("server") Server server, @Param("type") Metric.MetricType type, Pageable pageable);
+    
+    default Optional<Metric> findLatestByServerAndType(Server server, Metric.MetricType type) {
+        List<Metric> results = findLatestByServerAndTypeWithLimit(server, type, Pageable.ofSize(1));
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
     
     @Query("SELECT m FROM Metric m WHERE m.server = :server AND m.timestamp BETWEEN :start AND :end ORDER BY m.timestamp")
     List<Metric> findByServerAndTimeRange(
