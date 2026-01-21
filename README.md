@@ -3,6 +3,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Spring%20Boot-4.0.1-green?style=for-the-badge&logo=springboot" alt="Spring Boot">
   <img src="https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=openjdk" alt="Java">
+  <img src="https://img.shields.io/badge/React-18.3-blue?style=for-the-badge&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5.8-blue?style=for-the-badge&logo=typescript" alt="TypeScript">
   <img src="https://img.shields.io/badge/MySQL-8.0-blue?style=for-the-badge&logo=mysql" alt="MySQL">
   <img src="https://img.shields.io/badge/Redis-7.0-red?style=for-the-badge&logo=redis" alt="Redis">
 </p>
@@ -17,6 +19,7 @@ Argus is a real-time server monitoring and alerting system that uses lightweight
 - [Getting Started](#-getting-started)
 - [Configuration](#-configuration)
 - [API Reference](#-api-reference)
+- [Frontend](#-frontend)
 - [Agent Setup](#-agent-setup)
 - [Database Schema](#-database-schema)
 
@@ -77,6 +80,8 @@ Argus is a real-time server monitoring and alerting system that uses lightweight
 
 ## 🛠 Tech Stack
 
+### Backend
+
 | Component | Technology |
 |-----------|------------|
 | Backend Framework | Spring Boot 4.0.1 |
@@ -87,6 +92,21 @@ Argus is a real-time server monitoring and alerting system that uses lightweight
 | Real-time | WebSocket (STOMP) |
 | Email | Spring Mail (SMTP) |
 | Build Tool | Maven |
+
+### Frontend
+
+| Component | Technology |
+|-----------|------------|
+| Framework | React 18.3 |
+| Language | TypeScript 5.8 |
+| Build Tool | Vite 5.4 |
+| UI Library | shadcn/ui + Radix UI |
+| Styling | Tailwind CSS 3.4 |
+| State Management | TanStack React Query |
+| Routing | React Router 6 |
+| Charts | Recharts |
+| WebSocket | STOMP.js + SockJS |
+| Form Handling | React Hook Form + Zod |
 
 ---
 
@@ -126,6 +146,18 @@ Argus is a real-time server monitoring and alerting system that uses lightweight
 5. **Access the API**
    ```
    http://localhost:8080
+   ```
+
+6. **Run the Frontend**
+   ```bash
+   cd Argus_Frontend
+   npm install
+   npm run dev
+   ```
+
+7. **Access the Dashboard**
+   ```
+   http://localhost:5173
    ```
 
 ---
@@ -194,7 +226,110 @@ All API responses follow this structure:
 
 ---
 
-## 📊 Metric Ingestion Endpoints
+## � Authentication Endpoints
+
+### 1. Register User
+
+Create a new user account.
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/api/v1/auth/register` |
+| **Method** | `POST` |
+| **Auth** | None |
+
+**Request Body:**
+
+```json
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "username": "johndoe",
+    "email": "john@example.com"
+  },
+  "timestamp": 1736755200000
+}
+```
+
+---
+
+### 2. Login
+
+Authenticate and receive a JWT token.
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/api/v1/auth/login` |
+| **Method** | `POST` |
+| **Auth** | None |
+
+**Request Body:**
+
+```json
+{
+  "username": "johndoe",
+  "password": "SecurePass123!"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "username": "johndoe",
+    "email": "john@example.com"
+  },
+  "timestamp": 1736755200000
+}
+```
+
+---
+
+### 3. Validate Token
+
+Check if the current JWT token is valid.
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/api/v1/auth/validate` |
+| **Method** | `GET` |
+| **Auth** | Required (JWT) |
+
+**Request Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Token is valid",
+  "data": "OK",
+  "timestamp": 1736755200000
+}
+```
+
+---
+
+## �📊 Metric Ingestion Endpoints
 
 These endpoints are **PUBLIC** (no authentication required) - used by agents.
 
@@ -632,6 +767,42 @@ Get the most recent value for a specific metric type.
 
 ---
 
+### 8. Get Average Metric
+
+Get the average value for a specific metric type over a time period.
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/api/v1/metrics/server/{id}/average` |
+| **Method** | `GET` |
+| **Auth** | Required (JWT) |
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | string | Yes | Metric type (e.g., `CPU_USAGE`) |
+| `minutes` | int | No | Time period in minutes (default: 60) |
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:8080/api/v1/metrics/server/1/average?type=CPU_USAGE&minutes=30"
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": 52.75,
+  "timestamp": 1736755200000
+}
+```
+
+---
+
 ## 🚨 Alert Management Endpoints
 
 ### Alert Rules
@@ -935,6 +1106,79 @@ Manually resolve an alert.
 
 ---
 
+## 🖥️ Frontend
+
+The Argus Frontend is a modern React dashboard for monitoring servers and managing alerts.
+
+### Frontend Structure
+
+```
+Argus_Frontend/
+├── src/
+│   ├── components/          # Reusable UI components
+│   │   ├── ui/              # shadcn/ui components
+│   │   ├── layout/          # Layout components (Sidebar, MainLayout)
+│   │   ├── AlertCard.tsx    # Alert display component
+│   │   ├── MetricCard.tsx   # Metric visualization component
+│   │   ├── ServerCard.tsx   # Server status card
+│   │   └── StatusBadge.tsx  # Status indicator badge
+│   ├── pages/               # Application pages
+│   │   ├── Dashboard.tsx    # Main dashboard with metrics overview
+│   │   ├── Servers.tsx      # Server list view
+│   │   ├── ServerDetail.tsx # Individual server details
+│   │   ├── AddServer.tsx    # Server registration form
+│   │   ├── Alerts.tsx       # Active alerts view
+│   │   ├── AlertRules.tsx   # Alert rule management
+│   │   ├── Login.tsx        # Authentication page
+│   │   ├── Register.tsx     # User registration
+│   │   └── Settings.tsx     # User settings
+│   ├── contexts/            # React contexts
+│   │   └── AuthContext.tsx  # Authentication state management
+│   ├── hooks/               # Custom React hooks
+│   │   ├── use-realtime.ts  # WebSocket real-time updates
+│   │   ├── use-toast.ts     # Toast notifications
+│   │   └── use-mobile.tsx   # Mobile responsiveness
+│   └── lib/                 # Utilities
+│       ├── api.ts           # API client configuration
+│       └── utils.ts         # Helper functions
+├── package.json
+├── vite.config.ts
+├── tailwind.config.ts
+└── tsconfig.json
+```
+
+### Running the Frontend
+
+```bash
+# Navigate to frontend directory
+cd Argus_Frontend
+
+# Install dependencies (using npm or bun)
+npm install
+# or
+bun install
+
+# Start development server
+npm run dev
+# or
+bun dev
+
+# Build for production
+npm run build
+```
+
+### Frontend Features
+
+- **Real-time Dashboard**: Live metrics updates via WebSocket
+- **Server Management**: Add, view, and delete monitored servers
+- **Metrics Visualization**: Charts and graphs for CPU, Memory, Disk, Network
+- **Alert Management**: View, acknowledge, and resolve alerts
+- **Alert Rules**: Create and manage threshold-based alert rules
+- **Responsive Design**: Works on desktop and mobile devices
+- **Dark/Light Mode**: Theme support via next-themes
+
+---
+
 ## 🤖 Agent Setup
 
 The Argus agent is a lightweight shell script that runs on client servers to collect and send metrics.
@@ -953,10 +1197,10 @@ The Argus agent is a lightweight shell script that runs on client servers to col
 
 3. **Configure the agent**
    
-   Edit the script and set:
+   Set environment variables or edit the script:
    ```bash
-   ARGUS_SERVER_URL="http://your-argus-server:8080"
-   AGENT_KEY="argus-550e8400-e29b-41d4-a716-446655440000"
+   export ARGUS_SERVER_URL="http://your-argus-server:8080"
+   export AGENT_KEY="argus-550e8400-e29b-41d4-a716-446655440000"
    ```
 
 4. **Test the agent**
@@ -966,8 +1210,16 @@ The Argus agent is a lightweight shell script that runs on client servers to col
 
 5. **Set up cron job (runs every minute)**
    ```bash
-   (crontab -l 2>/dev/null; echo "*/1 * * * * /opt/argus/argus-agent.sh >> /var/log/argus-agent.log 2>&1") | crontab -
+   (crontab -l 2>/dev/null; echo "*/1 * * * * ARGUS_SERVER_URL=http://your-server:8080 AGENT_KEY=your-key /opt/argus/argus-agent.sh >> /var/log/argus-agent.log 2>&1") | crontab -
    ```
+
+### Alternative: Use the Loop Script
+
+For continuous monitoring without cron:
+```bash
+# Run the agent loop script
+ARGUS_SERVER_URL=http://your-server:8080 AGENT_KEY=your-key ./argus-agent-loop.sh
+```
 
 ### Systemd Service (Recommended)
 
@@ -1092,6 +1344,27 @@ ws://localhost:8080/ws
 **Topics:**
 - `/topic/metrics/{serverId}` - Real-time metrics for a server
 - `/topic/alerts` - New alert notifications
+- `/topic/server-status` - Server status changes
+
+### Frontend WebSocket Usage
+
+The frontend uses `@stomp/stompjs` and `sockjs-client` for WebSocket connections:
+
+```typescript
+// Example from use-realtime.ts
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+
+const client = new Client({
+  webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+  onConnect: () => {
+    client.subscribe('/topic/metrics/1', (message) => {
+      const metrics = JSON.parse(message.body);
+      // Handle real-time metrics
+    });
+  }
+});
+```
 
 ---
 
@@ -1101,7 +1374,57 @@ This project is licensed under the MIT License.
 
 ---
 
-## 👥 Contributors
+## �️ Project Structure
+
+```
+Argus/
+├── src/main/java/nightswatch/argus/
+│   ├── ArgusApplication.java    # Main Spring Boot application
+│   ├── config/                  # Configuration classes
+│   │   ├── SecurityConfig.java  # Spring Security configuration
+│   │   ├── WebSocketConfig.java # WebSocket configuration
+│   │   ├── JwtAuthenticationFilter.java
+│   │   └── SchedulingConfig.java
+│   ├── controller/              # REST API controllers
+│   │   ├── AuthController.java
+│   │   ├── ServerController.java
+│   │   ├── MetricIngestionController.java
+│   │   └── AlertController.java
+│   ├── service/                 # Business logic services
+│   │   ├── UserService.java
+│   │   ├── ServerService.java
+│   │   ├── MetricService.java
+│   │   ├── AlertService.java
+│   │   ├── AlertEvaluationService.java
+│   │   ├── NotificationService.java
+│   │   ├── HeartbeatMonitorService.java
+│   │   └── JwtService.java
+│   ├── entity/                  # JPA entities
+│   │   ├── User.java
+│   │   ├── Server.java
+│   │   ├── Metric.java
+│   │   ├── Alert.java
+│   │   ├── AlertRule.java
+│   │   └── Notification.java
+│   ├── repository/              # Spring Data JPA repositories
+│   ├── dto/                     # Data Transfer Objects
+│   │   ├── request/
+│   │   └── response/
+│   └── exception/               # Custom exceptions
+├── src/main/resources/
+│   └── application.properties   # Application configuration
+├── Argus_Frontend/              # React Frontend
+├── agent/                       # Monitoring agent scripts
+│   ├── argus-agent.sh          # Main agent script
+│   ├── argus-agent-loop.sh     # Continuous monitoring script
+│   └── argus-agent-test.sh     # Test script
+├── pom.xml                      # Maven configuration
+└── README.md
+```
+
+---
+
+## �👥 Contributors
 
 - **Night's Watch Team** - Initial development
 
