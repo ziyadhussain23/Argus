@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -27,11 +28,14 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-sidebar">
       {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-          <Activity className="h-5 w-5 text-primary-foreground" />
+      <div className="flex h-16 items-center justify-between border-b border-border px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <Activity className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <span className="font-display text-xl font-bold text-foreground">Argus</span>
         </div>
-        <span className="font-display text-xl font-bold text-foreground">Argus</span>
+        <ThemeToggle />
       </div>
 
       {/* Navigation */}
