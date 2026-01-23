@@ -6,24 +6,58 @@ import { MetricCard } from '@/components/MetricCard';
 import { ServerCard } from '@/components/ServerCard';
 import { AlertCard } from '@/components/AlertCard';
 import { Button } from '@/components/ui/button';
-import { 
-  Server, 
-  AlertTriangle, 
-  Activity, 
-  Shield, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Server,
+  AlertTriangle,
+  Activity,
+  Shield,
   Plus,
   ArrowRight,
-  Loader2
+  Loader2,
+  MoreVertical,
+  History,
+  Layout,
+  Cpu,
 } from 'lucide-react';
-import { serversApi, alertsApi, Server as ServerType, Alert } from '@/lib/api';
+import { serversApi, alertsApi, alertRulesApi, Server as ServerType, Alert, AlertRule, Metric } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtime } from '@/hooks/use-realtime';
+import {
+  LineChart, Line, AreaChart, Area,
+  ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip,
+} from 'recharts';
+
+interface VisibleSections {
+  servers: boolean;
+  alerts: boolean;
+  rules: boolean;
+  history: boolean;
+}
 
 export default function Dashboard() {
   const [servers, setServers] = useState<ServerType[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [rules, setRules] = useState<AlertRule[]>([]);
+  const [historyData, setHistoryData] = useState<{ time: string; value: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Visibility State
+  const [visibleSections, setVisibleSections] = useState<VisibleSections>({
+    servers: true,
+    alerts: true,
+    rules: true,
+    history: true,
+  });
+
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -73,8 +107,13 @@ export default function Dashboard() {
         serversApi.getAll(),
         alertsApi.getActive(),
       ]);
-      
-      if (serversRes.success) setServers(serversRes.data);
+
+      if (serversRes.success) {
+        setServers(serversRes.data);
+        if (serversRes.data.length > 0) {
+          fetchRulesAndHistory(serversRes.data[0].id);
+        }
+      }
       if (alertsRes.success) setAlerts(alertsRes.data);
     } catch (error) {
       toast({
@@ -87,16 +126,37 @@ export default function Dashboard() {
     }
   };
 
+  const fetchRulesAndHistory = async (serverId: number) => {
+    try {
+      const rulesRes = await alertRulesApi.getByServer(serverId);
+      if (rulesRes.success) setRules(rulesRes.data.slice(0, 3));
+
+      // Fetch sample history (CPU Usage of first server for now)
+      const metricsRes = await serversApi.getMetrics(serverId, { type: 'CPU_USAGE' });
+      if (metricsRes.success) {
+        const data = metricsRes.data
+          .slice(-20)
+          .map((m: Metric) => ({
+            time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            value: m.value
+          }));
+        setHistoryData(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch secondary dashboard data', error);
+    }
+  };
+
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
 
   const handleAcknowledge = async (alertId: number) => {
     try {
       await alertsApi.acknowledge(alertId);
-      setAlerts(alerts.map(a => 
+      setAlerts(alerts.map(a =>
         a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' as const } : a
       ));
       toast({ title: 'Alert acknowledged' });
@@ -113,6 +173,13 @@ export default function Dashboard() {
     } catch (error) {
       toast({ title: 'Failed to resolve alert', variant: 'destructive' });
     }
+  };
+
+  const toggleSection = (section: keyof VisibleSections) => {
+    setVisibleSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
   const stats = {
@@ -143,12 +210,54 @@ export default function Dashboard() {
               Monitor your infrastructure at a glance
             </p>
           </div>
-          <Link to="/servers/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Server
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/servers/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Server
+              </Button>
+            </Link>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Customize Dashboard</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={visibleSections.servers}
+                  onCheckedChange={() => toggleSection('servers')}
+                >
+                  <Server className="mr-2 h-4 w-4" />
+                  Servers
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleSections.alerts}
+                  onCheckedChange={() => toggleSection('alerts')}
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Active Alerts
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleSections.rules}
+                  onCheckedChange={() => toggleSection('rules')}
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  Alert Rules
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleSections.history}
+                  onCheckedChange={() => toggleSection('history')}
+                >
+                  <History className="mr-2 h-4 w-4" />
+                  System History
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Stats */}
@@ -181,67 +290,184 @@ export default function Dashboard() {
 
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Servers Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-semibold text-foreground">Servers</h2>
-              <Link to="/servers" className="text-sm text-primary hover:underline flex items-center gap-1">
-                View all <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-            
-            {servers.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                <Server className="mx-auto h-10 w-10 text-muted-foreground" />
-                <h3 className="mt-4 font-medium text-foreground">No servers yet</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Add your first server to start monitoring
-                </p>
-                <Link to="/servers/new">
-                  <Button className="mt-4" size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Server
-                  </Button>
+          {visibleSections.servers && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-xl font-semibold text-foreground">Servers</h2>
+                <Link to="/servers" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  View all <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {servers.slice(0, 4).map((server) => (
-                  <ServerCard key={server.id} server={server} />
-                ))}
-              </div>
-            )}
-          </div>
+
+              {servers.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                  <Server className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <h3 className="mt-4 font-medium text-foreground">No servers yet</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Add your first server to start monitoring
+                  </p>
+                  <Link to="/servers/new">
+                    <Button className="mt-4" size="sm">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Server
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {servers.slice(0, 4).map((server) => (
+                    <ServerCard key={server.id} server={server} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Alerts Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl font-semibold text-foreground">Active Alerts</h2>
-              <Link to="/alerts" className="text-sm text-primary hover:underline flex items-center gap-1">
-                View all <ArrowRight className="h-3 w-3" />
-              </Link>
+          {visibleSections.alerts && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-xl font-semibold text-foreground">Active Alerts</h2>
+                <Link to="/alerts" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  View all <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              {alerts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                  <Shield className="mx-auto h-10 w-10 text-success" />
+                  <h3 className="mt-4 font-medium text-foreground">All clear!</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    No active alerts at the moment
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {alerts.slice(0, 3).map((alert) => (
+                    <AlertCard
+                      key={alert.id}
+                      alert={alert}
+                      onAcknowledge={handleAcknowledge}
+                      onResolve={handleResolve}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-            
-            {alerts.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                <Shield className="mx-auto h-10 w-10 text-success" />
-                <h3 className="mt-4 font-medium text-foreground">All clear!</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  No active alerts at the moment
-                </p>
+          )}
+
+          {/* Recent History Widget */}
+          {visibleSections.history && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-xl font-semibold text-foreground">System History</h2>
+                <Link to="/history" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  Full History <ArrowRight className="h-3 w-3" />
+                </Link>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {alerts.slice(0, 3).map((alert) => (
-                  <AlertCard
-                    key={alert.id}
-                    alert={alert}
-                    onAcknowledge={handleAcknowledge}
-                    onResolve={handleResolve}
-                  />
-                ))}
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <div className="h-56">
+                  {historyData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={historyData}>
+                        <defs>
+                          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis
+                          dataKey="time"
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            borderColor: 'hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke="hsl(var(--primary))"
+                          fillOpacity={1}
+                          fill="url(#colorValue)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+                      <div className="flex flex-col items-center gap-2">
+                        <Activity className="h-8 w-8 opacity-50" />
+                        <p>No history data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Alert Rules Widget */}
+          {visibleSections.rules && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-xl font-semibold text-foreground">Alert Rules</h2>
+                <Link to="/rules" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  Manage Rules <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              {rules.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                  <Shield className="mx-auto h-10 w-10 text-muted-foreground" />
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    No alert rules configured
+                  </p>
+                  <Link to="/rules">
+                    <Button variant="link" size="sm" className="mt-2 text-primary">
+                      Configure Rules
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {rules.map((rule) => (
+                    <div key={rule.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">{rule.name}</span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className={`px-1.5 py-0.5 rounded ${rule.isEnabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                            }`}>
+                            {rule.isEnabled ? 'Active' : 'Disabled'}
+                          </span>
+                          <span>•</span>
+                          <span>{rule.metricType}</span>
+                        </div>
+                      </div>
+                      <Link to="/rules">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
