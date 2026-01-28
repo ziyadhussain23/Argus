@@ -11,7 +11,8 @@ import {
   Loader2, 
   Copy, 
   Check,
-  Terminal
+  Terminal,
+  Download
 } from 'lucide-react';
 import { serversApi, Server as ServerType } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
