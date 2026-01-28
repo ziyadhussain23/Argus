@@ -40,6 +40,13 @@ const operatingSystems = [
   { value: 'Other Linux', label: 'Other Linux' },
 ];
 
+// Get the server URL for agent configuration
+const getServerUrl = () => {
+  const apiUrl = getApiBaseUrl();
+  // Extract base URL without /api/v1
+  return apiUrl.replace('/api/v1', '');
+};
+
 export default function AddServer() {
   const [name, setName] = useState('');
   const [hostAddress, setHostAddress] = useState('');
