@@ -14,7 +14,7 @@ import {
   Terminal,
   Download
 } from 'lucide-react';
-import { serversApi, Server as ServerType } from '@/lib/api';
+import { serversApi, Server as ServerType, getApiBaseUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
