@@ -24,6 +24,13 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Builder.Default
+    @Column(name = "phone_verified")
+    private Boolean phoneVerified = false;
+
     @Column(nullable = false)
     private String password;
 
