@@ -47,6 +47,121 @@ const getServerUrl = () => {
   return apiUrl.replace('/api/v1', '');
 };
 
+// Generate Windows PowerShell agent script
+const generateWindowsScript = (agentKey: string, serverUrl: string, serverName: string): string => {
+  return `# Argus Monitoring Agent for Windows
+# Server: ${serverName}
+# Generated: ${new Date().toISOString()}
+# 
+# INSTRUCTIONS:
+# 1. Save this file as argus-agent.ps1
+# 2. Run in PowerShell as Administrator:
+#    powershell -ExecutionPolicy Bypass -File argus-agent.ps1
+# 3. Press Ctrl+C to stop monitoring
+
+$ARGUS_SERVER_URL = "${serverUrl}"
+$AGENT_KEY = "${agentKey}"
+
+Write-Host "🚀 Starting Argus Monitoring Agent..."
+Write-Host "📊 Server: $ARGUS_SERVER_URL"
+Write-Host "🔑 Agent Key: $($AGENT_KEY.Substring(0,20))..."
+Write-Host "⏱️  Interval: 60 seconds"
+Write-Host "❌ Press Ctrl+C to stop"
+Write-Host "----------------------------------------"
+
+function Get-CpuUsage {
+    $cpu = Get-WmiObject -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average
+    return [math]::Round($cpu.Average, 2)
+}
+
+function Get-MemoryUsage {
+    $os = Get-WmiObject -Class Win32_OperatingSystem
+    $totalMB = [math]::Round($os.TotalVisibleMemorySize / 1024, 0)
+    $freeMB = [math]::Round($os.FreePhysicalMemory / 1024, 0)
+    $usedMB = $totalMB - $freeMB
+    $usedPercent = [math]::Round(($usedMB / $totalMB) * 100, 2)
+    return @{ UsedPercent = $usedPercent; TotalMB = $totalMB; AvailableMB = $freeMB }
+}
+
+function Get-DiskUsage {
+    $disk = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='C:'"
+    $totalMB = [math]::Round($disk.Size / 1MB, 0)
+    $freeMB = [math]::Round($disk.FreeSpace / 1MB, 0)
+    $usedPercent = [math]::Round((($totalMB - $freeMB) / $totalMB) * 100, 2)
+    return @{ UsedPercent = $usedPercent; TotalMB = $totalMB; AvailableMB = $freeMB }
+}
+
+function Get-NetworkIO {
+    $netAdapters = Get-NetAdapterStatistics | Where-Object { $_.ReceivedBytes -gt 0 }
+    $rxBytes = ($netAdapters | Measure-Object -Property ReceivedBytes -Sum).Sum
+    $txBytes = ($netAdapters | Measure-Object -Property SentBytes -Sum).Sum
+    return @{ RxBytes = $rxBytes; TxBytes = $txBytes }
+}
+
+function Get-ProcessCount {
+    return (Get-Process).Count
+}
+
+function Get-LoadAverage {
+    $cpu = Get-WmiObject -Class Win32_Processor | Measure-Object -Property LoadPercentage -Average
+    return [math]::Round($cpu.Average / 100, 2)
+}
+
+function Get-Uptime {
+    $os = Get-WmiObject -Class Win32_OperatingSystem
+    $uptime = (Get-Date) - $os.ConvertToDateTime($os.LastBootUpTime)
+    return [math]::Round($uptime.TotalSeconds, 0)
+}
+
+# Main loop
+$runCount = 0
+while ($true) {
+    $runCount++
+    $timestamp = [long]((Get-Date -UFormat %s) * 1000)
+    
+    Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Run #$runCount - Sending metrics..."
+    
+    $cpu = Get-CpuUsage
+    $mem = Get-MemoryUsage
+    $disk = Get-DiskUsage
+    $net = Get-NetworkIO
+    $procs = Get-ProcessCount
+    $load = Get-LoadAverage
+    $uptime = Get-Uptime
+    
+    $payload = @{
+        agentKey = $AGENT_KEY
+        timestamp = $timestamp
+        metrics = @(
+            @{ type = "CPU_USAGE"; value = $cpu; unit = "%" }
+            @{ type = "MEMORY_USAGE"; value = $mem.UsedPercent; unit = "%" }
+            @{ type = "MEMORY_TOTAL"; value = $mem.TotalMB; unit = "MB" }
+            @{ type = "MEMORY_AVAILABLE"; value = $mem.AvailableMB; unit = "MB" }
+            @{ type = "DISK_USAGE"; value = $disk.UsedPercent; unit = "%" }
+            @{ type = "DISK_TOTAL"; value = $disk.TotalMB; unit = "MB" }
+            @{ type = "DISK_AVAILABLE"; value = $disk.AvailableMB; unit = "MB" }
+            @{ type = "NETWORK_IN"; value = $net.RxBytes; unit = "bytes" }
+            @{ type = "NETWORK_OUT"; value = $net.TxBytes; unit = "bytes" }
+            @{ type = "PROCESS_COUNT"; value = $procs; unit = "count" }
+            @{ type = "LOAD_AVERAGE"; value = $load; unit = "" }
+            @{ type = "UPTIME"; value = $uptime; unit = "seconds" }
+        )
+    } | ConvertTo-Json -Depth 3
+    
+    try {
+        $response = Invoke-RestMethod -Uri "$ARGUS_SERVER_URL/api/v1/metrics/ingest" -Method Post -Body $payload -ContentType "application/json"
+        Write-Host "✅ Metrics sent successfully"
+    } catch {
+        Write-Host "❌ Failed to send metrics: $_"
+    }
+    
+    Write-Host "💤 Waiting 60 seconds..."
+    Write-Host "----------------------------------------"
+    Start-Sleep -Seconds 60
+}
+`;
+};
+
 export default function AddServer() {
   const [name, setName] = useState('');
   const [hostAddress, setHostAddress] = useState('');
