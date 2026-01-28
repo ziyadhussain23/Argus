@@ -37,3 +37,13 @@ build/
 
 # Application properties (contains sensitive data)
 src/main/resources/application.properties
+
+# Environment variables
+.env
+.env.local
+*.env
+!.env.example
+
+# Local configuration
+application-local.properties
+
