@@ -370,6 +370,7 @@ export default function AddServer() {
   const [isLoading, setIsLoading] = useState(false);
   const [createdServer, setCreatedServer] = useState<ServerType | null>(null);
   const [copied, setCopied] = useState(false);
+  const [scriptCopied, setScriptCopied] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
