@@ -46,3 +46,14 @@ spring.mail.properties.mail.from=${MAIL_FROM_EMAIL}
 # Argus Monitoring Configuration
 argus.metrics.retention-days=30
 argus.alert.evaluation-interval=60000
+
+# Twilio SMS Configuration
+# Get these from https://console.twilio.com
+twilio.account-sid=${TWILIO_ACCOUNT_SID}
+twilio.auth-token=${TWILIO_AUTH_TOKEN}
+twilio.phone-number=${TWILIO_PHONE_NUMBER}
+twilio.enabled=${TWILIO_ENABLED:false}
+
+# SMS Rate Limiting
+sms.rate-limit.max-per-hour=10
+sms.rate-limit.max-per-day=50
