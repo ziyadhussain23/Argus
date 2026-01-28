@@ -25,16 +25,19 @@ import {
 } from '@/components/ui/select';
 
 const operatingSystems = [
-  'Ubuntu 22.04 LTS',
-  'Ubuntu 20.04 LTS',
-  'Debian 12',
-  'Debian 11',
-  'CentOS 8',
-  'CentOS 7',
-  'RHEL 8',
-  'RHEL 9',
-  'Amazon Linux 2',
-  'Other',
+  { value: 'macOS', label: 'macOS' },
+  { value: 'Windows 10', label: 'Windows 10' },
+  { value: 'Windows 11', label: 'Windows 11' },
+  { value: 'Ubuntu 22.04 LTS', label: 'Ubuntu 22.04 LTS' },
+  { value: 'Ubuntu 20.04 LTS', label: 'Ubuntu 20.04 LTS' },
+  { value: 'Debian 12', label: 'Debian 12' },
+  { value: 'Debian 11', label: 'Debian 11' },
+  { value: 'CentOS 8', label: 'CentOS 8' },
+  { value: 'CentOS 7', label: 'CentOS 7' },
+  { value: 'RHEL 8', label: 'RHEL 8' },
+  { value: 'RHEL 9', label: 'RHEL 9' },
+  { value: 'Amazon Linux 2', label: 'Amazon Linux 2' },
+  { value: 'Other Linux', label: 'Other Linux' },
 ];
 
 export default function AddServer() {
