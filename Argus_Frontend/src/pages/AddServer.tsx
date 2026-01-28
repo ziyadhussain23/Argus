@@ -612,8 +612,8 @@ export default function AddServer() {
                   </SelectTrigger>
                   <SelectContent>
                     {operatingSystems.map((os) => (
-                      <SelectItem key={os} value={os}>
-                        {os}
+                      <SelectItem key={os.value} value={os.value}>
+                        {os.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
