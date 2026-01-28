@@ -522,17 +522,42 @@ export default function AddServer() {
                 </p>
               </div>
 
-              <div className="rounded-lg bg-muted p-4">
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
-                  <Terminal className="h-4 w-4" />
-                  Installation Steps
+              {/* Generated Script Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4" />
+                    Agent Script ({operatingSystem || 'Select OS'})
+                  </Label>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={copyScript}>
+                      {scriptCopied ? (
+                        <Check className="h-4 w-4 text-success" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                      <span className="ml-2">{scriptCopied ? 'Copied!' : 'Copy'}</span>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={downloadScript}>
+                      <Download className="h-4 w-4" />
+                      <span className="ml-2">Download</span>
+                    </Button>
+                  </div>
                 </div>
-                <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                  <li>Download the agent script to your server</li>
-                  <li>Make it executable: <code className="text-primary">chmod +x argus-agent.sh</code></li>
-                  <li>Configure the AGENT_KEY in the script with the key above</li>
-                  <li>Set up a cron job or systemd service to run the agent</li>
-                </ol>
+                
+                <div className="relative">
+                  <pre className="rounded-lg bg-muted p-4 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto">
+                    <code className="text-muted-foreground whitespace-pre">
+                      {generateAgentScript(createdServer.agentKey, operatingSystem, createdServer.name)}
+                    </code>
+                  </pre>
+                </div>
+                
+                <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+                  <pre className="text-xs font-mono text-primary whitespace-pre-wrap">
+                    {getScriptInstructions()}
+                  </pre>
+                </div>
               </div>
             </div>
 
