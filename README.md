@@ -133,10 +133,39 @@ Argus is a real-time server monitoring and alerting system that uses lightweight
    ```
 
 3. **Configure application properties**
+   
+   The application uses environment variables for sensitive configuration. 
+   
+   **Option 1: Using application.properties (Recommended for Development)**
    ```bash
    cp src/main/resources/application.properties.example src/main/resources/application.properties
-   # Edit application.properties with your database and mail credentials
+   # Edit application.properties and replace ${VARIABLE_NAME} with actual values
    ```
+   
+   **Option 2: Using Environment Variables (Recommended for Production)**
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   # Edit .env with your actual credentials
+   ```
+   
+   **Required Environment Variables:**
+   - `DB_USERNAME` - MySQL username
+   - `DB_PASSWORD` - MySQL password
+   - `DB_HOST` - Database host (default: localhost)
+   - `DB_PORT` - Database port (default: 3306)
+   - `DB_NAME` - Database name (default: argus_db)
+   - `REDIS_HOST` - Redis host (default: localhost)
+   - `REDIS_PORT` - Redis port (default: 6379)
+   - `JWT_SECRET` - JWT secret key (minimum 256 bits)
+   - `JWT_EXPIRATION` - JWT expiration time in ms (default: 86400000)
+   - `MAIL_HOST` - SMTP host (default: smtp.gmail.com)
+   - `MAIL_PORT` - SMTP port (default: 587)
+   - `MAIL_USERNAME` - Email username
+   - `MAIL_PASSWORD` - Email app-specific password
+   - `MAIL_FROM_EMAIL` - From email address
+   
+   **⚠️ Security Note:** Never commit `application.properties` or `.env` files with actual credentials to version control!
 
 4. **Run the application**
    ```bash
@@ -163,6 +192,73 @@ Argus is a real-time server monitoring and alerting system that uses lightweight
 ---
 
 ## ⚙ Configuration
+
+### Environment Variables
+
+The application uses environment variables for sensitive configuration. You can set them using:
+
+1. **System environment variables**
+2. **application.properties** with `${VARIABLE_NAME}` placeholders
+3. **.env file** (for local development)
+
+### application.properties.example
+
+The repository includes a template file with environment variable placeholders:
+
+```properties
+# Database Configuration
+spring.datasource.url=jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:argus_db}?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+
+# Redis Configuration
+spring.data.redis.host=${REDIS_HOST:localhost}
+spring.data.redis.port=${REDIS_PORT:6379}
+
+# JWT Configuration
+argus.jwt.secret=${JWT_SECRET}
+argus.jwt.expiration=${JWT_EXPIRATION:86400000}
+
+# Mail Configuration
+spring.mail.host=${MAIL_HOST:smtp.gmail.com}
+spring.mail.port=${MAIL_PORT:587}
+spring.mail.username=${MAIL_USERNAME}
+spring.mail.password=${MAIL_PASSWORD}
+app.mail.from-email=${MAIL_FROM_EMAIL}
+
+# Monitoring Configuration
+argus.metrics.retention-days=30
+argus.alert.evaluation-interval=60000
+```
+
+### Local Development Setup
+
+1. Copy the example file:
+   ```bash
+   cp src/main/resources/application.properties.example src/main/resources/application.properties
+   ```
+
+2. Edit `application.properties` and replace the environment variables with your actual values:
+   ```properties
+   spring.datasource.username=your_actual_username
+   spring.datasource.password=your_actual_password
+   spring.mail.username=your-email@gmail.com
+   spring.mail.password=your-app-password
+   argus.jwt.secret=your-256-bit-secret-key
+   ```
+
+### Production Deployment
+
+For production, set environment variables in your deployment environment:
+
+```bash
+export DB_USERNAME=your_username
+export DB_PASSWORD=your_password
+export JWT_SECRET=your-production-secret
+export MAIL_USERNAME=your-email@gmail.com
+export MAIL_PASSWORD=your-app-password
+export MAIL_FROM_EMAIL=your-email@gmail.com
+```
 
 ### application.properties
 
