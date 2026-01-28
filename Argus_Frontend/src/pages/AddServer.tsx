@@ -412,6 +412,60 @@ export default function AddServer() {
     }
   };
 
+  // Copy the generated script to clipboard
+  const copyScript = () => {
+    if (createdServer?.agentKey) {
+      const script = generateAgentScript(createdServer.agentKey, operatingSystem, createdServer.name);
+      navigator.clipboard.writeText(script);
+      setScriptCopied(true);
+      setTimeout(() => setScriptCopied(false), 2000);
+      toast({
+        title: 'Script copied!',
+        description: 'The agent script has been copied to your clipboard.',
+      });
+    }
+  };
+
+  // Download the generated script as a file
+  const downloadScript = () => {
+    if (createdServer?.agentKey) {
+      const script = generateAgentScript(createdServer.agentKey, operatingSystem, createdServer.name);
+      const isWindows = operatingSystem.toLowerCase().includes('windows');
+      const filename = isWindows ? 'argus-agent.ps1' : 'argus-agent.sh';
+      const mimeType = isWindows ? 'text/plain' : 'application/x-sh';
+      
+      const blob = new Blob([script], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Script downloaded!',
+        description: `${filename} has been downloaded.`,
+      });
+    }
+  };
+
+  // Get OS-specific instructions for running the script
+  const getScriptInstructions = (): string => {
+    const isWindows = operatingSystem.toLowerCase().includes('windows');
+    if (isWindows) {
+      return `# Windows PowerShell
+# 1. Save as argus-agent.ps1
+# 2. Run: powershell -ExecutionPolicy Bypass -File argus-agent.ps1`;
+    } else {
+      return `# macOS / Linux
+# 1. Save as argus-agent.sh
+# 2. chmod +x argus-agent.sh
+# 3. ./argus-agent.sh`;
+    }
+  };
+
   if (createdServer) {
     return (
       <MainLayout>
