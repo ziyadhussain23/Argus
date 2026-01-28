@@ -162,6 +162,206 @@ while ($true) {
 `;
 };
 
+// Generate macOS/Linux Bash agent script with continuous monitoring
+const generateBashScript = (agentKey: string, serverUrl: string, serverName: string): string => {
+  return `#!/bin/bash
+
+#######################################################
+# ARGUS MONITORING AGENT (Continuous)
+# Server: ${serverName}
+# Generated: ${new Date().toISOString()}
+# 
+# INSTRUCTIONS:
+# 1. Save this file as argus-agent.sh
+# 2. Make executable: chmod +x argus-agent.sh
+# 3. Run: ./argus-agent.sh
+# 4. Press Ctrl+C to stop
+#######################################################
+
+ARGUS_SERVER_URL="${serverUrl}"
+AGENT_KEY="${agentKey}"
+INTERVAL=60
+
+echo "🚀 Starting Argus Monitoring Agent..."
+echo "📊 Server: $ARGUS_SERVER_URL"
+echo "🔑 Agent Key: \${AGENT_KEY:0:20}..."
+echo "⏱️  Interval: $INTERVAL seconds"
+echo "❌ Press Ctrl+C to stop"
+echo "----------------------------------------"
+
+# Handle Ctrl+C gracefully
+trap 'echo -e "\\n🛑 Stopping monitoring..."; exit 0' SIGINT SIGTERM
+
+# Collect CPU Usage
+get_cpu_usage() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        cpu_usage=$(top -l 1 | grep "CPU usage" | awk '{print $3}' | cut -d'%' -f1)
+    else
+        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+        if [ -z "$cpu_usage" ]; then
+            cpu_usage=$(mpstat 1 1 2>/dev/null | tail -1 | awk '{print 100 - $NF}')
+        fi
+    fi
+    echo "\${cpu_usage:-0}"
+}
+
+# Collect Memory Usage
+get_memory_usage() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        total_mem=$(sysctl -n hw.memsize)
+        total_mb=$((total_mem / 1024 / 1024))
+        vm_stat_output=$(vm_stat)
+        pages_free=$(echo "$vm_stat_output" | grep "Pages free" | awk '{print $3}' | tr -d '.')
+        pages_active=$(echo "$vm_stat_output" | grep "Pages active" | awk '{print $3}' | tr -d '.')
+        pages_inactive=$(echo "$vm_stat_output" | grep "Pages inactive" | awk '{print $3}' | tr -d '.')
+        pages_wired=$(echo "$vm_stat_output" | grep "Pages wired down" | awk '{print $4}' | tr -d '.')
+        page_size=$(sysctl -n hw.pagesize)
+        used_pages=$((pages_active + pages_inactive + pages_wired))
+        used_mb=$((used_pages * page_size / 1024 / 1024))
+        available_mb=$((pages_free * page_size / 1024 / 1024))
+        if [ $total_mb -gt 0 ]; then
+            used_percent=$(awk "BEGIN {printf \\"%.2f\\", ($used_mb * 100.0 / $total_mb)}")
+        else
+            used_percent="0"
+        fi
+        echo "$used_percent $total_mb $available_mb"
+    else
+        mem_info=$(free -m | awk 'NR==2{printf "%.2f %d %d", $3*100/$2, $2, $7}')
+        echo "$mem_info"
+    fi
+}
+
+# Collect Disk Usage
+get_disk_usage() {
+    disk_info=$(df -m / | awk 'NR==2{gsub("%",""); printf "%.2f %d %d", $5, $2, $4}')
+    echo "$disk_info"
+}
+
+# Collect Network I/O
+get_network_io() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        net_stats=$(netstat -ib | grep -v "Name" | awk '{if ($1 !~ /lo/) {rx+=$7; tx+=$10}} END {print rx, tx}')
+        echo "\${net_stats:-0 0}"
+    else
+        default_iface=$(ip route | grep default | awk '{print $5}' | head -1)
+        if [ -n "$default_iface" ]; then
+            rx_bytes=$(cat /sys/class/net/$default_iface/statistics/rx_bytes 2>/dev/null || echo "0")
+            tx_bytes=$(cat /sys/class/net/$default_iface/statistics/tx_bytes 2>/dev/null || echo "0")
+            echo "$rx_bytes $tx_bytes"
+        else
+            echo "0 0"
+        fi
+    fi
+}
+
+# Collect Process Count
+get_process_count() {
+    ps aux | wc -l
+}
+
+# Collect Load Average
+get_load_average() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sysctl -n vm.loadavg | awk '{print $2}'
+    else
+        cat /proc/loadavg | awk '{print $1}'
+    fi
+}
+
+# Collect Uptime
+get_uptime() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        boot_time=$(sysctl -n kern.boottime | awk '{print $4}' | tr -d ',')
+        current_time=$(date +%s)
+        uptime_sec=$((current_time - boot_time))
+        echo "$uptime_sec"
+    else
+        cat /proc/uptime | awk '{print $1}'
+    fi
+}
+
+# Send metrics once
+send_metrics() {
+    cpu_usage=$(get_cpu_usage)
+    
+    mem_info=$(get_memory_usage)
+    mem_usage=$(echo $mem_info | awk '{print $1}')
+    mem_total=$(echo $mem_info | awk '{print $2}')
+    mem_available=$(echo $mem_info | awk '{print $3}')
+    
+    disk_info=$(get_disk_usage)
+    disk_usage=$(echo $disk_info | awk '{print $1}')
+    disk_total=$(echo $disk_info | awk '{print $2}')
+    disk_available=$(echo $disk_info | awk '{print $3}')
+    
+    network_io=$(get_network_io)
+    net_in=$(echo $network_io | awk '{print $1}')
+    net_out=$(echo $network_io | awk '{print $2}')
+    
+    process_count=$(get_process_count)
+    load_avg=$(get_load_average)
+    uptime=$(get_uptime)
+    
+    timestamp=$(($(date +%s) * 1000))
+    
+    json_payload=$(cat <<EOF
+{
+    "agentKey": "$AGENT_KEY",
+    "timestamp": $timestamp,
+    "metrics": [
+        {"type": "CPU_USAGE", "value": $cpu_usage, "unit": "%"},
+        {"type": "MEMORY_USAGE", "value": $mem_usage, "unit": "%"},
+        {"type": "MEMORY_TOTAL", "value": $mem_total, "unit": "MB"},
+        {"type": "MEMORY_AVAILABLE", "value": $mem_available, "unit": "MB"},
+        {"type": "DISK_USAGE", "value": $disk_usage, "unit": "%"},
+        {"type": "DISK_TOTAL", "value": $disk_total, "unit": "MB"},
+        {"type": "DISK_AVAILABLE", "value": $disk_available, "unit": "MB"},
+        {"type": "NETWORK_IN", "value": $net_in, "unit": "bytes"},
+        {"type": "NETWORK_OUT", "value": $net_out, "unit": "bytes"},
+        {"type": "PROCESS_COUNT", "value": $process_count, "unit": "count"},
+        {"type": "LOAD_AVERAGE", "value": $load_avg, "unit": ""},
+        {"type": "UPTIME", "value": $uptime, "unit": "seconds"}
+    ]
+}
+EOF
+)
+    
+    response=$(curl -s -X POST \\
+        -H "Content-Type: application/json" \\
+        -d "$json_payload" \\
+        "$ARGUS_SERVER_URL/api/v1/metrics/ingest" 2>&1)
+    
+    if echo "$response" | grep -q '"success":true'; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Metrics sent successfully"
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Failed: $response" >&2
+    fi
+}
+
+# Main loop - runs forever until Ctrl+C
+run_count=0
+while true; do
+    run_count=$((run_count + 1))
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Run #$run_count - Sending metrics..."
+    send_metrics
+    echo "💤 Waiting $INTERVAL seconds..."
+    echo "----------------------------------------"
+    sleep $INTERVAL
+done
+`;
+};
+
+// Generate OS-specific agent script
+const generateAgentScript = (agentKey: string, os: string, serverName: string): string => {
+  const serverUrl = getServerUrl();
+  
+  if (os.toLowerCase().includes('windows')) {
+    return generateWindowsScript(agentKey, serverUrl, serverName);
+  } else {
+    return generateBashScript(agentKey, serverUrl, serverName);
+  }
+};
+
 export default function AddServer() {
   const [name, setName] = useState('');
   const [hostAddress, setHostAddress] = useState('');
