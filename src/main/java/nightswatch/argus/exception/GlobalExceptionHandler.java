@@ -16,6 +16,30 @@ import java.util.Map;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadRequestException(BadRequestException ex) {
+        log.warn("Bad request: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SmsRateLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSmsRateLimitException(SmsRateLimitExceededException ex) {
+        log.warn("SMS rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SmsDeliveryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSmsDeliveryException(SmsDeliveryException ex) {
+        log.error("SMS delivery failed: {} (Error code: {})", ex.getMessage(), ex.getErrorCode());
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("SMS delivery failed: " + ex.getMessage()));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<Void>> handleRuntimeException(RuntimeException ex) {
         log.error("Runtime exception: {}", ex.getMessage());
