@@ -86,6 +86,12 @@ public class UserService {
             throw new BadRequestException("Account is deactivated");
         }
 
+        // Check if email is verified
+        if (!user.getEmailVerified()) {
+            log.warn("Login attempt with unverified email for user: {}", user.getUsername());
+            throw new BadRequestException("Email not verified. Please verify your email before logging in.");
+        }
+
         log.info("User logged in successfully: {}", user.getUsername());
 
         // Generate JWT token
@@ -157,6 +163,15 @@ public class UserService {
         // Send verification email
         emailService.sendVerificationEmail(user, verificationToken);
         log.info("Verification email resent to: {}", email);
+    }
+
+    public String getUserEmailByUsername(String username) {
+        log.info("Getting email for username: {}", username);
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BadRequestException("User not found with username: " + username));
+        
+        return user.getEmail();
     }
     
     @Transactional
