@@ -62,6 +62,15 @@ public class AuthController {
         
         return ResponseEntity.ok(ApiResponse.success("Verification email sent. Please check your inbox.", "SENT"));
     }
+
+    @GetMapping("/get-email")
+    public ResponseEntity<ApiResponse<String>> getUserEmail(@RequestParam String username) {
+        log.info("Get email request for username: {}", username);
+        
+        String email = userService.getUserEmailByUsername(username);
+        
+        return ResponseEntity.ok(ApiResponse.success("Email retrieved successfully", email));
+    }
     
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> forgotPassword(@RequestParam String email) {
