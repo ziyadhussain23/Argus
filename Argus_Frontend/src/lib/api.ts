@@ -136,6 +136,22 @@ export const authApi = {
       body: JSON.stringify({ username, email, password }),
     });
   },
+
+  verifyEmail: async (token: string) => {
+    return apiRequest<string>(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
+      method: 'POST',
+    });
+  },
+
+  resendVerification: async (email: string) => {
+    return apiRequest<string>(`/auth/resend-verification?email=${encodeURIComponent(email)}`, {
+      method: 'POST',
+    });
+  },
+
+  getUserEmail: async (username: string) => {
+    return apiRequest<string>(`/auth/get-email?username=${encodeURIComponent(username)}`);
+  },
 };
 
 // Servers API

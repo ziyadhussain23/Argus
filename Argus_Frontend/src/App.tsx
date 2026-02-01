@@ -18,6 +18,8 @@ import Alerts from "./pages/Alerts";
 import AlertRules from "./pages/AlertRules";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import VerifyEmail from "./pages/VerifyEmail";
+import EmailVerificationSent from "./pages/EmailVerificationSent";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +78,8 @@ const AppRoutes = () => (
         </PublicRoute>
       }
     />
+    <Route path="/verify-email" element={<VerifyEmail />} />
+    <Route path="/email-sent" element={<EmailVerificationSent />} />
     <Route
       path="/dashboard"
       element={

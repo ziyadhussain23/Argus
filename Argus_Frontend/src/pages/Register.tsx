@@ -37,9 +37,9 @@ export default function Register() {
       if (response.success) {
         toast({
           title: 'Account created!',
-          description: 'Please sign in with your new account.',
+          description: 'Please check your email for a verification link.',
         });
-        navigate('/login');
+        navigate('/email-sent');
       }
     } catch (error) {
       toast({
