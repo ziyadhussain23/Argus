@@ -1,5 +1,5 @@
 // History - System metrics history page with time frame selection
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,9 +32,21 @@ import {
     Clock,
     Server,
     Palette,
+    Download,
+    FileImage,
+    FileText,
+    FileSpreadsheet,
+    FileJson,
 } from 'lucide-react';
 import { serversApi, Server as ServerType, Metric } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import {
+    exportChartAsImage,
+    exportChartAsPDF,
+    exportDataAsExcel,
+    exportDataAsCSV,
+    exportDataAsJSON,
+} from '@/lib/export-utils';
 import {
     LineChart, Line, AreaChart, Area, BarChart, Bar,
     ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip,
@@ -90,6 +102,8 @@ export default function HistoryPage() {
     const [customColor, setCustomColor] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
     const [historyData, setHistoryData] = useState<AggregatedMetric[]>([]);
+    const [isExporting, setIsExporting] = useState(false);
+    const chartRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
     const fetchServers = async () => {
@@ -286,6 +300,172 @@ export default function HistoryPage() {
         }
     };
 
+    // Export handlers
+    const getExportMetadata = () => {
+        const metricInfo = metricOptions.find(m => m.value === selectedMetric);
+        const timeFrameInfo = timeFrameOptions.find(t => t.value === timeFrame);
+        return {
+            metricName: metricInfo?.label || 'Unknown Metric',
+            metricUnit: selectedMetric !== 'LOAD_AVERAGE' ? '%' : '',
+            timeFrame: timeFrameInfo?.label || 'Unknown',
+            serverSelection: selectedServer === 'all' ? 'All Servers' : servers.find(s => s.id.toString() === selectedServer)?.name || 'Unknown',
+            timestamp: new Date().toLocaleString(),
+        };
+    };
+
+    const handleExportImage = async (format: 'png' | 'jpg') => {
+        if (!chartRef.current || historyData.length === 0) {
+            toast({
+                title: 'No data to export',
+                description: 'Please wait for data to load',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const metadata = getExportMetadata();
+            const filename = `history-${selectedMetric.toLowerCase()}-${timeFrame}-${Date.now()}`;
+            await exportChartAsImage(chartRef.current, filename, format);
+            toast({
+                title: 'Export successful',
+                description: `Chart exported as ${format.toUpperCase()}`,
+            });
+        } catch (error) {
+            toast({
+                title: 'Export failed',
+                description: 'Could not export chart',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportPDF = async () => {
+        if (!chartRef.current || historyData.length === 0) {
+            toast({
+                title: 'No data to export',
+                description: 'Please wait for data to load',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const metadata = getExportMetadata();
+            const filename = `history-report-${Date.now()}`;
+            await exportChartAsPDF(chartRef.current, stats, metadata, filename);
+            toast({
+                title: 'Export successful',
+                description: 'Report exported as PDF',
+            });
+        } catch (error) {
+            toast({
+                title: 'Export failed',
+                description: 'Could not export PDF',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportExcel = () => {
+        if (historyData.length === 0) {
+            toast({
+                title: 'No data to export',
+                description: 'Please wait for data to load',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const data = getMetricData();
+            const metadata = getExportMetadata();
+            const filename = `history-data-${Date.now()}`;
+            exportDataAsExcel(data, metadata, stats, filename);
+            toast({
+                title: 'Export successful',
+                description: 'Data exported as Excel',
+            });
+        } catch (error) {
+            toast({
+                title: 'Export failed',
+                description: 'Could not export Excel file',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportCSV = () => {
+        if (historyData.length === 0) {
+            toast({
+                title: 'No data to export',
+                description: 'Please wait for data to load',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const data = getMetricData();
+            const metadata = getExportMetadata();
+            const filename = `history-data-${Date.now()}`;
+            exportDataAsCSV(data, metadata, filename);
+            toast({
+                title: 'Export successful',
+                description: 'Data exported as CSV',
+            });
+        } catch (error) {
+            toast({
+                title: 'Export failed',
+                description: 'Could not export CSV file',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportJSON = () => {
+        if (historyData.length === 0) {
+            toast({
+                title: 'No data to export',
+                description: 'Please wait for data to load',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const data = getMetricData();
+            const metadata = getExportMetadata();
+            const filename = `history-data-${Date.now()}`;
+            exportDataAsJSON(data, metadata, stats, filename);
+            toast({
+                title: 'Export successful',
+                description: 'Data exported as JSON',
+            });
+        } catch (error) {
+            toast({
+                title: 'Export failed',
+                description: 'Could not export JSON file',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const stats = getMetricStats();
 
     if (isLoading) {
@@ -309,18 +489,68 @@ export default function HistoryPage() {
                             View historical metrics for {selectedServer === 'all' ? 'all servers' : servers.find(s => s.id.toString() === selectedServer)?.name || 'selected server'}
                         </p>
                     </div>
-                    <Button
-                        variant="outline"
-                        onClick={fetchHistoryData}
-                        disabled={isLoadingHistory}
-                    >
-                        {isLoadingHistory ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                        )}
-                        Refresh
-                    </Button>
+                    <div className="flex gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={isExporting || isLoadingHistory || historyData.length === 0}
+                                >
+                                    {isExporting ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Download className="mr-2 h-4 w-4" />
+                                    )}
+                                    Export
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Image Formats</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleExportImage('png')} className="gap-2">
+                                    <FileImage className="h-4 w-4" />
+                                    Export as PNG
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleExportImage('jpg')} className="gap-2">
+                                    <FileImage className="h-4 w-4" />
+                                    Export as JPG
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Document Formats</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={handleExportPDF} className="gap-2">
+                                    <FileText className="h-4 w-4" />
+                                    Export as PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Data Formats</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
+                                    <FileSpreadsheet className="h-4 w-4" />
+                                    Export as Excel
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
+                                    <FileSpreadsheet className="h-4 w-4" />
+                                    Export as CSV
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleExportJSON} className="gap-2">
+                                    <FileJson className="h-4 w-4" />
+                                    Export as JSON
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                            variant="outline"
+                            onClick={fetchHistoryData}
+                            disabled={isLoadingHistory}
+                        >
+                            {isLoadingHistory ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                            )}
+                            Refresh
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -406,7 +636,7 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Main Chart */}
-                <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
+                <div ref={chartRef} className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
