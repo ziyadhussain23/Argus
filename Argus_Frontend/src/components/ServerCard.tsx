@@ -15,8 +15,8 @@ export function ServerCard({ server }: ServerCardProps) {
     : 'Never';
 
   const borderColor = {
-    ONLINE: 'hover:border-success/50',
-    OFFLINE: 'hover:border-muted-foreground/50',
+    ONLINE: 'hover:border-green-500/50',
+    OFFLINE: 'hover:border-red-500/50',
     WARNING: 'border-warning/30 hover:border-warning/50',
     CRITICAL: 'border-critical/30 hover:border-critical/50',
     UNKNOWN: 'hover:border-muted-foreground/50',

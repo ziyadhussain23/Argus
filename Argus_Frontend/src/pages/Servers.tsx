@@ -47,6 +47,9 @@ export default function Servers() {
     };
 
     fetchServers();
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchServers, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredServers = servers.filter((server) => {

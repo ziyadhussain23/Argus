@@ -15,7 +15,7 @@
 
 # Configuration - Environment variables override these defaults
 ARGUS_SERVER_URL="${ARGUS_SERVER_URL:-http://localhost:8080}"
-AGENT_KEY="${AGENT_KEY:-your-agent-key-here}"
+AGENT_KEY="${AGENT_KEY:-argus-d9972258-7799-4c07-adbd-a6abab675a55}"
 
 # Check if keys are set
 if [ "$AGENT_KEY" = "your-agent-key-here" ]; then

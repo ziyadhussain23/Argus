@@ -44,6 +44,9 @@ export default function Alerts() {
 
   useEffect(() => {
     fetchAlerts();
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchAlerts, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleAcknowledge = async (alertId: number) => {

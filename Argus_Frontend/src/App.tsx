@@ -17,9 +17,18 @@ import ServerDetail from "./pages/ServerDetail";
 import Alerts from "./pages/Alerts";
 import AlertRules from "./pages/AlertRules";
 import Settings from "./pages/Settings";
+import History from "./pages/History";
 import NotFound from "./pages/NotFound";
 import VerifyEmail from "./pages/VerifyEmail";
 import EmailVerificationSent from "./pages/EmailVerificationSent";
+import About from "./pages/About";
+import FAQ from "./pages/FAQ";
+import HelpSupport from "./pages/HelpSupport";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Cookies from "./pages/Cookies";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +90,22 @@ const AppRoutes = () => (
     <Route path="/verify-email" element={<VerifyEmail />} />
     <Route path="/email-sent" element={<EmailVerificationSent />} />
     <Route
+      path="/forgot-password"
+      element={
+        <PublicRoute>
+          <ForgotPassword />
+        </PublicRoute>
+      }
+    />
+    <Route
+      path="/reset-password"
+      element={
+        <PublicRoute>
+          <ResetPassword />
+        </PublicRoute>
+      }
+    />
+    <Route
       path="/dashboard"
       element={
         <ProtectedRoute>
@@ -129,6 +154,14 @@ const AppRoutes = () => (
       }
     />
     <Route
+      path="/history"
+      element={
+        <ProtectedRoute>
+          <History />
+        </ProtectedRoute>
+      }
+    />
+    <Route
       path="/settings"
       element={
         <ProtectedRoute>
@@ -136,6 +169,12 @@ const AppRoutes = () => (
         </ProtectedRoute>
       }
     />
+    <Route path="/about" element={<About />} />
+    <Route path="/faq" element={<FAQ />} />
+    <Route path="/help" element={<HelpSupport />} />
+    <Route path="/privacy" element={<Privacy />} />
+    <Route path="/terms" element={<Terms />} />
+    <Route path="/cookies" element={<Cookies />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

@@ -103,7 +103,7 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const url = `${getApiBaseUrl()}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -113,7 +113,7 @@ export async function apiRequest<T>(
   });
 
   const data = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(data.message || 'API request failed');
   }
@@ -129,7 +129,7 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     });
   },
-  
+
   register: async (username: string, email: string, password: string) => {
     return apiRequest<User>('/auth/register', {
       method: 'POST',
@@ -152,25 +152,39 @@ export const authApi = {
   getUserEmail: async (username: string) => {
     return apiRequest<string>(`/auth/get-email?username=${encodeURIComponent(username)}`);
   },
+
+  forgotPassword: async (email: string) => {
+    return apiRequest<string>('/auth/forgot-password?email=' + encodeURIComponent(email), {
+      method: 'POST',
+    });
+  },
+
+  resetPassword: async (token: string, newPassword: string) => {
+    return apiRequest<string>('/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token, newPassword }).toString(),
+    });
+  },
 };
 
 // Servers API
 export const serversApi = {
   getAll: () => apiRequest<Server[]>('/servers'),
-  
+
   getById: (id: number) => apiRequest<Server>(`/servers/${id}`),
-  
+
   create: (data: { name: string; hostAddress: string; operatingSystem: string; description?: string }) =>
     apiRequest<Server>('/servers', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   delete: (id: number) => apiRequest<null>(`/servers/${id}`, { method: 'DELETE' }),
-  
+
   regenerateKey: (id: number) =>
     apiRequest<string>(`/servers/${id}/regenerate-key`, { method: 'POST' }),
-  
+
   getMetrics: (id: number, params?: { type?: string; start?: string; end?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.type) searchParams.set('type', params.type);
@@ -179,7 +193,7 @@ export const serversApi = {
     const query = searchParams.toString();
     return apiRequest<Metric[]>(`/servers/${id}/metrics${query ? `?${query}` : ''}`);
   },
-  
+
   getLatestMetric: (id: number, type: string) =>
     apiRequest<Metric>(`/servers/${id}/metrics/latest?type=${type}`),
 };
@@ -187,12 +201,12 @@ export const serversApi = {
 // Alerts API
 export const alertsApi = {
   getActive: () => apiRequest<Alert[]>('/alerts'),
-  
+
   getByServer: (serverId: number) => apiRequest<Alert[]>(`/alerts/server/${serverId}`),
-  
+
   acknowledge: (alertId: number) =>
     apiRequest<null>(`/alerts/${alertId}/acknowledge`, { method: 'POST' }),
-  
+
   resolve: (alertId: number) =>
     apiRequest<null>(`/alerts/${alertId}/resolve`, { method: 'POST' }),
 };
@@ -201,7 +215,7 @@ export const alertsApi = {
 export const alertRulesApi = {
   getByServer: (serverId: number) =>
     apiRequest<AlertRule[]>(`/alerts/rules/server/${serverId}`),
-  
+
   create: (data: {
     name: string;
     description?: string;
@@ -217,10 +231,10 @@ export const alertRulesApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  
+
   toggle: (ruleId: number, enabled: boolean) =>
     apiRequest<null>(`/alerts/rules/${ruleId}/toggle?enabled=${enabled}`, { method: 'PATCH' }),
-  
+
   delete: (ruleId: number) =>
     apiRequest<null>(`/alerts/rules/${ruleId}`, { method: 'DELETE' }),
 };

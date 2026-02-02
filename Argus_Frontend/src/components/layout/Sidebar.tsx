@@ -1,12 +1,17 @@
-import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Server, 
-  Bell, 
-  AlertTriangle, 
-  Settings, 
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Server,
+  Bell,
+  AlertTriangle,
+  Settings,
   LogOut,
-  Activity
+  Activity,
+  HelpCircle,
+  MessageCircle,
+  Info,
+  ArrowLeft,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,32 +23,65 @@ const navItems = [
   { icon: Server, label: 'Servers', path: '/servers' },
   { icon: Bell, label: 'Alerts', path: '/alerts' },
   { icon: AlertTriangle, label: 'Alert Rules', path: '/rules' },
+  { icon: History, label: 'History', path: '/history' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
-export function Sidebar() {
+const secondaryNavItems = [
+  { icon: Info, label: 'About', path: '/about' },
+  { icon: MessageCircle, label: 'FAQ', path: '/faq' },
+  { icon: HelpCircle, label: 'Help & Support', path: '/help' },
+];
+
+interface SidebarProps {
+  isOpen: boolean;
+  toggle: () => void;
+}
+
+export function Sidebar({ isOpen, toggle }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const handleBack = () => {
+    navigate(-1);
+  };
+
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-sidebar">
-      {/* Logo */}
+    <aside className={cn(
+      "fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-border bg-card transition-transform duration-300",
+      isOpen ? "translate-x-0" : "-translate-x-full"
+    )}>
+      {/* Logo - Links to Home */}
       <div className="flex h-16 items-center justify-between border-b border-border px-6">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Activity className="h-5 w-5 text-primary-foreground" />
           </div>
           <span className="font-display text-xl font-bold text-foreground">Argus</span>
-        </div>
+        </Link>
         <ThemeToggle />
       </div>
 
+      {/* Back Button */}
+      <div className="px-3 pt-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleBack}
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      </div>
+
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
+          const isActive = location.pathname === item.path ||
             (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
-          
+
           return (
             <Link
               key={item.path}
@@ -64,6 +102,35 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Resources Section - Above User Section */}
+      <div className="border-t border-border px-3 py-3">
+        <p className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          Resources
+        </p>
+        {secondaryNavItems.map((item) => {
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+              {isActive && (
+                <div className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* User section */}
       <div className="border-t border-border p-4">
