@@ -60,6 +60,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Allow metric ingestion/heartbeat from agents (authenticated via agentKey in payload)
                 .requestMatchers(HttpMethod.POST, "/api/v1/metrics/ingest", "/api/v1/metrics/heartbeat").permitAll()
+                // Allow SMS webhooks from Twilio (secured by Twilio signature validation)
+                .requestMatchers("/api/v1/webhooks/sms/**").permitAll()
                 // Allow health check
                 .requestMatchers("/actuator/health").permitAll()
                 // Allow WebSocket handshake

@@ -9,6 +9,8 @@ import nightswatch.argus.entity.AlertRule;
 import nightswatch.argus.entity.Metric;
 import nightswatch.argus.entity.Notification;
 import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.SmsDeliveryException;
+import nightswatch.argus.exception.SmsRateLimitExceededException;
 import nightswatch.argus.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -29,6 +31,8 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final JavaMailSender mailSender;
+    private final NotificationPreferenceService preferenceService;
+    private final SmsService smsService;
     
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -39,19 +43,58 @@ public class NotificationService {
     @Transactional
     public void sendAlertNotification(Alert alert) {
         User owner = alert.getServer().getOwner();
+        boolean isCritical = alert.getSeverity() == AlertRule.AlertSeverity.CRITICAL;
         
-        Notification notification = Notification.builder()
-                .alert(alert)
-                .recipient(owner)
-                .channel(Notification.NotificationChannel.EMAIL)
-                .subject(alert.getTitle())
-                .content(alert.getMessage())
-                .status(Notification.NotificationStatus.PENDING)
-                .build();
+        // Send Email notification if enabled
+        if (preferenceService.isEmailEnabled(owner.getId())) {
+            Notification emailNotification = Notification.builder()
+                    .alert(alert)
+                    .recipient(owner)
+                    .channel(Notification.NotificationChannel.EMAIL)
+                    .subject(alert.getTitle())
+                    .content(alert.getMessage())
+                    .status(Notification.NotificationStatus.PENDING)
+                    .build();
+            
+            emailNotification = notificationRepository.save(emailNotification);
+            sendEmail(emailNotification);
+        }
         
-        notification = notificationRepository.save(notification);
-        
-        sendEmail(notification);
+        // Send SMS notification if enabled and conditions are met
+        if (preferenceService.shouldSendSms(owner, isCritical)) {
+            Notification smsNotification = Notification.builder()
+                    .alert(alert)
+                    .recipient(owner)
+                    .channel(Notification.NotificationChannel.SMS)
+                    .subject(alert.getTitle())
+                    .content(alert.getMessage())
+                    .status(Notification.NotificationStatus.PENDING)
+                    .build();
+            
+            smsNotification = notificationRepository.save(smsNotification);
+            sendSms(smsNotification);
+        }
+    }
+
+    private void sendSms(Notification notification) {
+        try {
+            smsService.sendAlertSms(notification.getAlert(), notification);
+            notification.markSent();
+            notificationRepository.save(notification);
+            log.info("SMS notification sent for alert: {}", notification.getAlert().getId());
+        } catch (SmsRateLimitExceededException e) {
+            notification.markFailed("Rate limit exceeded: " + e.getMessage());
+            notificationRepository.save(notification);
+            log.warn("SMS rate limit exceeded for user: {}", notification.getRecipient().getUsername());
+        } catch (SmsDeliveryException e) {
+            notification.markFailed(e.getErrorCode() + ": " + e.getMessage());
+            notificationRepository.save(notification);
+            log.error("Failed to send SMS notification: {}", e.getMessage());
+        } catch (Exception e) {
+            notification.markFailed(e.getMessage());
+            notificationRepository.save(notification);
+            log.error("Unexpected error sending SMS notification: {}", e.getMessage());
+        }
     }
 
     private void sendEmail(Notification notification) {
@@ -262,8 +305,10 @@ public class NotificationService {
         for (Notification notification : failedNotifications) {
             log.info("Retrying notification {} (attempt {})", notification.getId(), notification.getRetryCount() + 1);
             
-            if (notification.getChannel() == Notification.NotificationChannel.EMAIL) {
-                sendEmail(notification);
+            switch (notification.getChannel()) {
+                case EMAIL -> sendEmail(notification);
+                case SMS -> sendSms(notification);
+                default -> log.warn("Unsupported notification channel: {}", notification.getChannel());
             }
         }
     }
@@ -274,8 +319,10 @@ public class NotificationService {
         List<Notification> pending = notificationRepository.findPendingNotifications();
         
         for (Notification notification : pending) {
-            if (notification.getChannel() == Notification.NotificationChannel.EMAIL) {
-                sendEmail(notification);
+            switch (notification.getChannel()) {
+                case EMAIL -> sendEmail(notification);
+                case SMS -> sendSms(notification);
+                default -> log.warn("Unsupported notification channel: {}", notification.getChannel());
             }
         }
     }
