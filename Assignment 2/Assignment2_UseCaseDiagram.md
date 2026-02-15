@@ -74,15 +74,6 @@
 | Agent | Send Metrics |
 | Email Service | Send Notification |
 
-### Actor-Use Case Mapping
-
-| Actor | Use Cases |
-|-------|-----------|
-| Guest | Register, Login, Verify Email, Reset Password |
-| User | Login, Logout, Add Server, View Servers, View Server Details, Delete Server, Create Alert Rule, View Alerts, Acknowledge Alert, Resolve Alert, View Dashboard |
-| Admin | All User use cases |
-| Agent | Send Metrics |
-| Email Service | Send Notification |
 
 ---
 
