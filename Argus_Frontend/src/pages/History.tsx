@@ -37,6 +37,7 @@ import {
     FileText,
     FileSpreadsheet,
     FileJson,
+    Layers,
 } from 'lucide-react';
 import { serversApi, Server as ServerType, Metric } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -49,7 +50,7 @@ import {
 } from '@/lib/export-utils';
 import {
     LineChart, Line, AreaChart, Area, BarChart, Bar,
-    ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip,
+    ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Legend as RechartsLegend,
 } from 'recharts';
 
 type ChartType = 'line' | 'area' | 'bar';
@@ -100,6 +101,7 @@ export default function HistoryPage() {
     const [chartType, setChartType] = useState<ChartType>('area');
     const [selectedMetric, setSelectedMetric] = useState<MetricType>('CPU_USAGE');
     const [customColor, setCustomColor] = useState<string>('');
+    const [overlayMode, setOverlayMode] = useState(false);
     const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
     const [historyData, setHistoryData] = useState<AggregatedMetric[]>([]);
     const [isExporting, setIsExporting] = useState(false);
@@ -245,7 +247,7 @@ export default function HistoryPage() {
 
     const getMetricStats = () => {
         const data = getMetricData();
-        if (data.length === 0) return { avg: 0, max: 0, min: 0, current: 0 };
+        if (data.length === 0) return { avg: '0', max: '0', min: '0', current: '0' };
 
         const values = data.map(d => d.value);
         return {
@@ -267,6 +269,35 @@ export default function HistoryPage() {
             borderRadius: '8px',
         };
 
+        // Overlay mode: show all metrics on a single chart
+        if (overlayMode) {
+            return (
+                <LineChart data={historyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={[0, 'auto']} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <RechartsLegend />
+                    {metricOptions.map((opt) => {
+                        const key = opt.value === 'CPU_USAGE' ? 'cpu'
+                            : opt.value === 'MEMORY_USAGE' ? 'memory'
+                                : opt.value === 'DISK_USAGE' ? 'disk' : 'load';
+                        return (
+                            <Line
+                                key={key}
+                                type="monotone"
+                                dataKey={key}
+                                name={opt.shortLabel}
+                                stroke={opt.color}
+                                strokeWidth={2}
+                                dot={false}
+                            />
+                        );
+                    })}
+                </LineChart>
+            );
+        }
+
         if (chartType === 'line') {
             return (
                 <LineChart data={data}>
@@ -284,7 +315,7 @@ export default function HistoryPage() {
                     <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="value" stroke={color} fill={`${color.replace(')', ' / 0.3)')}`} strokeWidth={2} />
+                    <Area type="monotone" dataKey="value" stroke={color} fill={(() => { const i = color.lastIndexOf(')'); return i === -1 ? color : color.slice(0, i) + ' / 0.3)' + color.slice(i + 1); })()  } strokeWidth={2} />
                 </AreaChart>
             );
         } else {
@@ -653,8 +684,23 @@ export default function HistoryPage() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3">
+                            {/* Overlay Toggle */}
+                            <Button
+                                variant={overlayMode ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setOverlayMode(!overlayMode)}
+                                className={`h-[52px] px-4 gap-2 rounded-lg border-2 transition-all ${
+                                    overlayMode
+                                        ? 'ring-2 ring-primary ring-offset-1 ring-offset-background shadow-md'
+                                        : 'border-border hover:border-primary/50'
+                                }`}
+                            >
+                                <Layers className="h-4 w-4" />
+                                <span className="hidden sm:inline font-medium">Compare</span>
+                            </Button>
+
                             {/* Metric Selector */}
-                            <div className="flex gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30">
+                            <div className={`flex gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30 transition-opacity ${overlayMode ? 'opacity-40 pointer-events-none' : ''}`}>
                                 {metricOptions.map((option) => {
                                     const isSelected = selectedMetric === option.value;
                                     return (
@@ -679,7 +725,7 @@ export default function HistoryPage() {
                             </div>
 
                             {/* Chart Type Selector */}
-                            <div className="flex gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30">
+                            <div className={`flex gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30 transition-opacity ${overlayMode ? 'opacity-40 pointer-events-none' : ''}`}>
                                 <Button
                                     variant={chartType === 'line' ? 'default' : 'ghost'}
                                     size="sm"
