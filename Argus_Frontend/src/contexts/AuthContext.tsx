@@ -22,7 +22,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (token && storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        // Check if JWT token is expired
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          // Token expired — clean up
+          removeToken();
+          localStorage.removeItem('argus_user');
+        } else {
+          setUser(JSON.parse(storedUser));
+        }
       } catch {
         removeToken();
         localStorage.removeItem('argus_user');
