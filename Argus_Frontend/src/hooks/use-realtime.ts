@@ -3,9 +3,9 @@ import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { getApiBaseUrl } from '@/lib/api';
 
-// Shared WebSocket status so only one connection is needed
+// ── Shared singleton WebSocket client ──────────────────────────────
 type WsStatus = 'connected' | 'disconnected' | 'connecting';
-let sharedStatus: WsStatus = 'connecting';
+let sharedStatus: WsStatus = 'disconnected';
 const statusListeners = new Set<() => void>();
 
 function setSharedStatus(s: WsStatus) {
@@ -24,6 +24,47 @@ function getStatusSnapshot() {
   return sharedStatus;
 }
 
+let sharedClient: Client | null = null;
+let refCount = 0;
+
+function getSharedClient(): Client {
+  if (!sharedClient) {
+    const apiBase = getApiBaseUrl();
+    const serverBase = apiBase.replace(/\/api\/v1\/?$/, '');
+    const socketUrl = `${serverBase}/ws`;
+
+    sharedClient = new Client({
+      webSocketFactory: () => new SockJS(socketUrl),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        setSharedStatus('connected');
+      },
+      onDisconnect: () => {
+        setSharedStatus('disconnected');
+      },
+      onStompError: () => {
+        setSharedStatus('disconnected');
+      },
+      onWebSocketError: () => {
+        setSharedStatus('disconnected');
+      },
+    });
+
+    setSharedStatus('connecting');
+    sharedClient.activate();
+  }
+  return sharedClient;
+}
+
+function releaseSharedClient() {
+  if (refCount <= 0 && sharedClient) {
+    sharedClient.deactivate();
+    sharedClient = null;
+    setSharedStatus('disconnected');
+  }
+}
+
+// ── Hook ───────────────────────────────────────────────────────────
 export type RealtimeSubscription<T = unknown> = {
   topic: string;
   onMessage: (payload: T) => void;
@@ -40,60 +81,55 @@ export function useRealtime(
   useEffect(() => {
     if (!enabled || subscriptions.length === 0) return;
 
-    const apiBase = getApiBaseUrl();
-    const serverBase = apiBase.replace(/\/api\/v1\/?$/, '');
-    const socketUrl = `${serverBase}/ws`;
+    refCount++;
+    const client = getSharedClient();
+    let subs: StompSubscription[] = [];
 
-    const client = new Client({
-      webSocketFactory: () => new SockJS(socketUrl),
-      reconnectDelay: 5000,
-      onConnect: () => {
-        setConnected(true);
-        setReconnecting(false);
-        setSharedStatus('connected');
-        wasConnectedRef.current = true;
-        const subs: StompSubscription[] = [];
+    function doSubscribe() {
+      subs = subscriptions.map((sub) =>
+        client.subscribe(sub.topic, (message: IMessage) => {
+          try {
+            const payload = JSON.parse(message.body);
+            sub.onMessage(payload);
+          } catch {
+            // Ignore malformed payloads
+          }
+        })
+      );
+      setConnected(true);
+      setReconnecting(false);
+      wasConnectedRef.current = true;
+    }
 
-        subscriptions.forEach((sub) => {
-          subs.push(
-            client.subscribe(sub.topic, (message: IMessage) => {
-              try {
-                const payload = JSON.parse(message.body);
-                sub.onMessage(payload);
-              } catch {
-                // Ignore malformed payloads
-              }
-            })
-          );
-        });
+    // If already connected, subscribe immediately
+    if (client.connected) {
+      doSubscribe();
+    }
 
-        client.onDisconnect = () => {
-          subs.forEach((s) => s.unsubscribe());
-          setConnected(false);
-          setSharedStatus('disconnected');
-          if (wasConnectedRef.current) setReconnecting(true);
-        };
-      },
-      onStompError: () => {
-        setConnected(false);
-        setSharedStatus('disconnected');
-        if (wasConnectedRef.current) setReconnecting(true);
-      },
-      onWebSocketError: () => {
-        setConnected(false);
-        setSharedStatus('disconnected');
-        if (wasConnectedRef.current) setReconnecting(true);
-      },
-    });
+    // Also subscribe on future (re)connects
+    const origOnConnect = client.onConnect;
+    client.onConnect = (frame) => {
+      origOnConnect?.(frame);
+      // Clean old subs before re-subscribing
+      subs.forEach((s) => { try { s.unsubscribe(); } catch {} });
+      doSubscribe();
+    };
 
-    client.activate();
+    // Track disconnections for this component
+    const origOnDisconnect = client.onDisconnect;
+    client.onDisconnect = (frame) => {
+      origOnDisconnect?.(frame);
+      setConnected(false);
+      if (wasConnectedRef.current) setReconnecting(true);
+    };
 
     return () => {
-      client.deactivate();
+      subs.forEach((s) => { try { s.unsubscribe(); } catch {} });
       setConnected(false);
       setReconnecting(false);
-      setSharedStatus('disconnected');
       wasConnectedRef.current = false;
+      refCount--;
+      // Don't kill the shared client — keep it alive for the status indicator
     };
   }, [enabled, subscriptions]);
 
@@ -106,4 +142,20 @@ export function useRealtime(
  */
 export function useWebSocketStatus() {
   return useSyncExternalStore(subscribeStatus, getStatusSnapshot);
+}
+
+/**
+ * Call once in a top-level component (e.g. App or MainLayout) to keep
+ * the shared WebSocket alive across page navigations.
+ */
+export function useKeepWebSocketAlive(enabled = true) {
+  useEffect(() => {
+    if (!enabled) return;
+    refCount++;
+    getSharedClient();
+    return () => {
+      refCount--;
+      releaseSharedClient();
+    };
+  }, [enabled]);
 }
