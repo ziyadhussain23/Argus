@@ -1,7 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useSyncExternalStore } from 'react';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { getApiBaseUrl } from '@/lib/api';
+
+// Shared WebSocket status so only one connection is needed
+type WsStatus = 'connected' | 'disconnected' | 'connecting';
+let sharedStatus: WsStatus = 'connecting';
+const statusListeners = new Set<() => void>();
+
+function setSharedStatus(s: WsStatus) {
+  if (sharedStatus !== s) {
+    sharedStatus = s;
+    statusListeners.forEach((l) => l());
+  }
+}
+
+function subscribeStatus(listener: () => void) {
+  statusListeners.add(listener);
+  return () => { statusListeners.delete(listener); };
+}
+
+function getStatusSnapshot() {
+  return sharedStatus;
+}
 
 export type RealtimeSubscription<T = unknown> = {
   topic: string;
@@ -13,6 +34,8 @@ export function useRealtime(
   enabled = true
 ) {
   const [connected, setConnected] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const wasConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || subscriptions.length === 0) return;
@@ -26,6 +49,9 @@ export function useRealtime(
       reconnectDelay: 5000,
       onConnect: () => {
         setConnected(true);
+        setReconnecting(false);
+        setSharedStatus('connected');
+        wasConnectedRef.current = true;
         const subs: StompSubscription[] = [];
 
         subscriptions.forEach((sub) => {
@@ -44,10 +70,20 @@ export function useRealtime(
         client.onDisconnect = () => {
           subs.forEach((s) => s.unsubscribe());
           setConnected(false);
+          setSharedStatus('disconnected');
+          if (wasConnectedRef.current) setReconnecting(true);
         };
       },
-      onStompError: () => setConnected(false),
-      onWebSocketError: () => setConnected(false),
+      onStompError: () => {
+        setConnected(false);
+        setSharedStatus('disconnected');
+        if (wasConnectedRef.current) setReconnecting(true);
+      },
+      onWebSocketError: () => {
+        setConnected(false);
+        setSharedStatus('disconnected');
+        if (wasConnectedRef.current) setReconnecting(true);
+      },
     });
 
     client.activate();
@@ -55,8 +91,19 @@ export function useRealtime(
     return () => {
       client.deactivate();
       setConnected(false);
+      setReconnecting(false);
+      setSharedStatus('disconnected');
+      wasConnectedRef.current = false;
     };
   }, [enabled, subscriptions]);
 
-  return { connected };
+  return { connected, reconnecting };
+}
+
+/**
+ * Lightweight hook to monitor WebSocket connection status.
+ * Reads the shared status published by useRealtime — no extra connection.
+ */
+export function useWebSocketStatus() {
+  return useSyncExternalStore(subscribeStatus, getStatusSnapshot);
 }
