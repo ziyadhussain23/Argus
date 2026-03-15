@@ -4,12 +4,14 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { ServerCard } from '@/components/ServerCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Plus, 
   Search, 
   Server as ServerIcon, 
   Loader2,
-  Filter
+  Filter,
+  ArrowUpDown
 } from 'lucide-react';
 import { serversApi, Server } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +28,7 @@ export default function Servers() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('name-az');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,6 +50,9 @@ export default function Servers() {
     };
 
     fetchServers();
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchServers, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredServers = servers.filter((server) => {
@@ -55,6 +61,26 @@ export default function Servers() {
       server.hostAddress.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || server.status === statusFilter;
     return matchesSearch && matchesStatus;
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case 'name-az': return a.name.localeCompare(b.name);
+      case 'name-za': return b.name.localeCompare(a.name);
+      case 'status': {
+        const order = { CRITICAL: 0, WARNING: 1, OFFLINE: 2, ONLINE: 3, UNKNOWN: 4 };
+        return (order[a.status] ?? 5) - (order[b.status] ?? 5);
+      }
+      case 'newest': {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      }
+      case 'oldest': {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aTime - bTime;
+      }
+      default: return 0;
+    }
   });
 
   const statusCounts = {
@@ -110,12 +136,48 @@ export default function Servers() {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-az">Name A-Z</SelectItem>
+                <SelectItem value="name-za">Name Z-A</SelectItem>
+                <SelectItem value="status">Status</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="oldest">Oldest</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Server Grid */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-11 w-11 rounded-lg" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3 w-3 rounded-full" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <div className="border-t border-border pt-4 flex justify-between">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-4 w-4" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredServers.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card/50 py-16 text-center">

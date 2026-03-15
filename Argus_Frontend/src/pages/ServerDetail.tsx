@@ -21,9 +21,23 @@ import {
   Clock,
   Activity,
   Terminal,
+  LineChartIcon,
+  BarChart3,
+  TrendingUp,
+  AlertTriangle,
+  ChevronRight,
+  Palette,
 } from 'lucide-react';
 import { serversApi, alertsApi, type Server as ServerType, type Alert, type Metric } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -38,7 +52,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useRealtime } from '@/hooks/use-realtime';
 import { RealtimeSubscription } from '@/hooks/use-realtime';
-import { LineChart, Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import {
+  LineChart, Line, AreaChart, Area, BarChart, Bar,
+  ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip
+} from 'recharts';
+
+type ChartType = 'line' | 'area' | 'bar';
 
 const METRIC_TYPES = [
   'CPU_USAGE',
@@ -56,6 +75,18 @@ const METRIC_TYPES = [
 type MetricMap = Record<string, Metric[]>;
 type MetricLatestMap = Record<string, Metric>;
 
+const CHART_COLORS = [
+  { name: 'Default', value: '' },
+  { name: 'Blue', value: 'hsl(221.2 83.2% 53.3%)' },
+  { name: 'Purple', value: 'hsl(262.1 83.3% 57.8%)' },
+  { name: 'Pink', value: 'hsl(316 70% 50%)' },
+  { name: 'Red', value: 'hsl(0 84.2% 60.2%)' },
+  { name: 'Orange', value: 'hsl(24.6 95% 53.1%)' },
+  { name: 'Green', value: 'hsl(142.1 76.2% 36.3%)' },
+  { name: 'Teal', value: 'hsl(175 80% 40%)' },
+  { name: 'Cyan', value: 'hsl(190 90% 50%)' },
+];
+
 export default function ServerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -68,6 +99,10 @@ export default function ServerDetail() {
   const [copied, setCopied] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [cpuChartType, setCpuChartType] = useState<ChartType>('line');
+  const [memoryChartType, setMemoryChartType] = useState<ChartType>('line');
+  const [cpuChartColor, setCpuChartColor] = useState<string>('');
+  const [memoryChartColor, setMemoryChartColor] = useState<string>('');
 
   const serverId = id ? Number(id) : null;
 
@@ -81,7 +116,7 @@ export default function ServerDetail() {
           setMetrics((prev) => {
             const next = { ...prev };
             incoming.forEach((metric) => {
-              const list = [ ...(next[metric.metricType] || []), metric ];
+              const list = [...(next[metric.metricType] || []), metric];
               if (list.length > 60) {
                 list.splice(0, list.length - 60);
               }
@@ -123,7 +158,7 @@ export default function ServerDetail() {
 
   const fetchData = async () => {
     if (!serverId) return;
-    
+
     try {
       const [serverRes, alertsRes] = await Promise.all([
         serversApi.getById(serverId),
@@ -170,8 +205,6 @@ export default function ServerDetail() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
   }, [id]);
 
   const copyAgentKey = () => {
@@ -185,7 +218,7 @@ export default function ServerDetail() {
   const regenerateKey = async () => {
     if (!server) return;
     setIsRegenerating(true);
-    
+
     try {
       const response = await serversApi.regenerateKey(server.id);
       if (response.success) {
@@ -201,7 +234,7 @@ export default function ServerDetail() {
 
   const deleteServer = async () => {
     if (!server) return;
-    
+
     try {
       await serversApi.delete(server.id);
       toast({ title: 'Server deleted' });
@@ -211,10 +244,10 @@ export default function ServerDetail() {
     }
   };
 
-  const handleAcknowledge = async (alertId: number) => {
+  const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
       await alertsApi.acknowledge(alertId);
-      setAlerts(alerts.map(a => 
+      setAlerts(alerts.map(a =>
         a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' as const } : a
       ));
       toast({ title: 'Alert acknowledged' });
@@ -282,6 +315,103 @@ export default function ServerDetail() {
     return `${mb.toFixed(0)} MB`;
   };
 
+  /**
+   * Reusable chart renderer — eliminates duplication between the CPU and Memory chart blocks.
+   */
+  const renderMetricChart = (opts: {
+    title: string;
+    data: { time: string; value: number }[];
+    chartType: ChartType;
+    setChartType: (t: ChartType) => void;
+    chartColor: string;
+    setChartColor: (c: string) => void;
+    defaultColor: string;
+  }) => {
+    const { title, data, chartType: ct, setChartType: setCt, chartColor, setChartColor: setCc, defaultColor } = opts;
+    if (data.length === 0) return null;
+    const color = chartColor || defaultColor;
+    // Replace only the LAST ')' to safely handle hsl(var(--foo)) patterns
+    const makeAlpha = (c: string) => {
+      const idx = c.lastIndexOf(')');
+      if (idx === -1) return c;
+      return c.slice(0, idx) + ' / 0.3)' + c.slice(idx + 1);
+    };
+    const fillColor = chartColor ? makeAlpha(chartColor) : makeAlpha(defaultColor);
+    const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' };
+    const axisStroke = 'hsl(var(--muted-foreground))';
+    const gridStroke = 'hsl(var(--border))';
+
+    return (
+      <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
+          <div className="flex gap-1 rounded-lg border border-border p-1 bg-muted/50">
+            <Button variant={ct === 'line' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCt('line')} className="h-7 px-2 gap-1 text-xs">
+              <LineChartIcon className="h-3 w-3" /> Line
+            </Button>
+            <Button variant={ct === 'area' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCt('area')} className="h-7 px-2 gap-1 text-xs">
+              <TrendingUp className="h-3 w-3" /> Area
+            </Button>
+            <Button variant={ct === 'bar' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCt('bar')} className="h-7 px-2 gap-1 text-xs">
+              <BarChart3 className="h-3 w-3" /> Bar
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" style={chartColor ? { color: chartColor } : {}}>
+                  <Palette className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Chart Color</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="grid grid-cols-4 gap-2 p-2">
+                  {CHART_COLORS.map((c) => (
+                    <DropdownMenuItem key={c.name} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted" onClick={() => setCc(c.value)} title={c.name}>
+                      {c.value ? (
+                        <div className="h-6 w-6 rounded-full border border-border shadow-sm" style={{ backgroundColor: c.value }} />
+                      ) : (
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">/</div>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            {ct === 'line' ? (
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                <XAxis dataKey="time" stroke={axisStroke} fontSize={12} />
+                <YAxis stroke={axisStroke} fontSize={12} domain={[0, 100]} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
+              </LineChart>
+            ) : ct === 'area' ? (
+              <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                <XAxis dataKey="time" stroke={axisStroke} fontSize={12} />
+                <YAxis stroke={axisStroke} fontSize={12} domain={[0, 100]} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area type="monotone" dataKey="value" stroke={color} fill={fillColor} strokeWidth={2} />
+              </AreaChart>
+            ) : (
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                <XAxis dataKey="time" stroke={axisStroke} fontSize={12} />
+                <YAxis stroke={axisStroke} fontSize={12} domain={[0, 100]} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <MainLayout>
       <div className="space-y-8">
@@ -296,7 +426,7 @@ export default function ServerDetail() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Servers
             </Button>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted">
                 <Server className="h-7 w-7 text-foreground" />
@@ -379,7 +509,7 @@ export default function ServerDetail() {
             icon={<Cpu className="h-5 w-5" />}
             status={
               (latestMetrics['CPU_USAGE']?.value ?? 0) > 90 ? 'critical' :
-              (latestMetrics['CPU_USAGE']?.value ?? 0) > 70 ? 'warning' : 'normal'
+                (latestMetrics['CPU_USAGE']?.value ?? 0) > 70 ? 'warning' : 'normal'
             }
           />
           <MetricCard
@@ -389,7 +519,7 @@ export default function ServerDetail() {
             icon={<MemoryStick className="h-5 w-5" />}
             status={
               (latestMetrics['MEMORY_USAGE']?.value ?? 0) > 90 ? 'critical' :
-              (latestMetrics['MEMORY_USAGE']?.value ?? 0) > 70 ? 'warning' : 'normal'
+                (latestMetrics['MEMORY_USAGE']?.value ?? 0) > 70 ? 'warning' : 'normal'
             }
           />
           <MetricCard
@@ -399,7 +529,7 @@ export default function ServerDetail() {
             icon={<HardDrive className="h-5 w-5" />}
             status={
               (latestMetrics['DISK_USAGE']?.value ?? 0) > 90 ? 'critical' :
-              (latestMetrics['DISK_USAGE']?.value ?? 0) > 80 ? 'warning' : 'normal'
+                (latestMetrics['DISK_USAGE']?.value ?? 0) > 80 ? 'warning' : 'normal'
             }
           />
           <MetricCard
@@ -410,84 +540,26 @@ export default function ServerDetail() {
         </div>
 
         {/* CPU Chart */}
-        {cpuChartData.length > 0 && (
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <h3 className="font-display text-lg font-semibold text-foreground mb-4">
-              CPU Usage Over Time
-            </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={cpuChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="time" 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
+        {renderMetricChart({
+          title: 'CPU Usage Over Time',
+          data: cpuChartData,
+          chartType: cpuChartType,
+          setChartType: setCpuChartType,
+          chartColor: cpuChartColor,
+          setChartColor: setCpuChartColor,
+          defaultColor: 'hsl(var(--primary))',
+        })}
 
         {/* Memory Chart */}
-        {memoryChartData.length > 0 && (
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <h3 className="font-display text-lg font-semibold text-foreground mb-4">
-              Memory Usage Over Time
-            </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={memoryChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="time" 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                  />
-                  <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                    domain={[0, 100]}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="value" 
-                    stroke="hsl(142 76% 36%)" 
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
+        {renderMetricChart({
+          title: 'Memory Usage Over Time',
+          data: memoryChartData,
+          chartType: memoryChartType,
+          setChartType: setMemoryChartType,
+          chartColor: memoryChartColor,
+          setChartColor: setMemoryChartColor,
+          defaultColor: 'hsl(142 76% 36%)',
+        })}
 
         {/* Disk & Memory Info */}
         <div className="grid gap-4 md:grid-cols-2">
@@ -513,7 +585,7 @@ export default function ServerDetail() {
                 <span className="font-semibold text-success">{formatSize(memoryAvailable)}</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
                   style={{ width: `${memoryTotal > 0 ? (memoryUsed / memoryTotal) * 100 : 0}%` }}
                 />
@@ -543,7 +615,7 @@ export default function ServerDetail() {
                 <span className="font-semibold text-success">{formatSize(diskAvailable)}</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
                   style={{ width: `${diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0}%` }}
                 />
@@ -563,7 +635,7 @@ export default function ServerDetail() {
                   CPU Information
                 </h3>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Processor</span>
@@ -571,10 +643,9 @@ export default function ServerDetail() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Current Usage</span>
-                  <span className={`font-semibold ${
-                    (latestMetrics['CPU_USAGE']?.value ?? 0) > 80 ? 'text-critical' :
+                  <span className={`font-semibold ${(latestMetrics['CPU_USAGE']?.value ?? 0) > 80 ? 'text-critical' :
                     (latestMetrics['CPU_USAGE']?.value ?? 0) > 60 ? 'text-warning' : 'text-success'
-                  }`}>
+                    }`}>
                     {latestMetrics['CPU_USAGE']?.value?.toFixed(1) ?? '--'}%
                   </span>
                 </div>
@@ -593,7 +664,7 @@ export default function ServerDetail() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Uptime</span>
                   <span className="text-foreground font-medium">
-                    {latestMetrics['UPTIME']?.value 
+                    {latestMetrics['UPTIME']?.value
                       ? `${Math.floor(latestMetrics['UPTIME'].value / 86400)}d ${Math.floor((latestMetrics['UPTIME'].value % 86400) / 3600)}h`
                       : '--'}
                   </span>
@@ -606,7 +677,7 @@ export default function ServerDetail() {
               <h3 className="font-display text-lg font-semibold text-foreground">
                 Server Information
               </h3>
-              
+
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Operating System</span>
@@ -621,7 +692,7 @@ export default function ServerDetail() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Last Heartbeat</span>
                   <span className="text-foreground">
-                    {server.lastHeartbeat 
+                    {server.lastHeartbeat
                       ? formatDistanceToNow(new Date(server.lastHeartbeat), { addSuffix: true })
                       : 'Never'}
                   </span>
@@ -634,7 +705,7 @@ export default function ServerDetail() {
               <h3 className="font-display text-lg font-semibold text-foreground">
                 Agent Key
               </h3>
-              
+
               <div className="flex gap-2">
                 <Input
                   value={server.agentKey}
@@ -648,9 +719,9 @@ export default function ServerDetail() {
                     <Copy className="h-4 w-4" />
                   )}
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={regenerateKey}
                   disabled={isRegenerating}
                 >
@@ -669,7 +740,7 @@ export default function ServerDetail() {
             <h3 className="font-display text-lg font-semibold text-foreground">
               Active Alerts ({alerts.length})
             </h3>
-            
+
             {alerts.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
                 <Check className="mx-auto h-8 w-8 text-success" />

@@ -1,5 +1,5 @@
 // Dashboard - Main monitoring overview page
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { MetricCard } from '@/components/MetricCard';
@@ -26,6 +26,9 @@ import {
   History,
   Layout,
   Cpu,
+  Book,
+  Code,
+  LifeBuoy
 } from 'lucide-react';
 import { serversApi, alertsApi, alertRulesApi, Server as ServerType, Alert, AlertRule, Metric } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,12 +38,22 @@ import {
   LineChart, Line, AreaChart, Area,
   ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip,
 } from 'recharts';
+import { motion } from 'framer-motion';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface VisibleSections {
   servers: boolean;
   alerts: boolean;
   rules: boolean;
   history: boolean;
+  resources: boolean;
 }
 
 export default function Dashboard() {
@@ -49,13 +62,16 @@ export default function Dashboard() {
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [historyData, setHistoryData] = useState<{ time: string; value: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState("24h");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Visibility State
-  const [visibleSections, setVisibleSections] = useState<VisibleSections>({
-    servers: true,
-    alerts: true,
-    rules: true,
-    history: true,
+  // Visibility State — persisted to localStorage
+  const [visibleSections, setVisibleSections] = useState<VisibleSections>(() => {
+    const stored = localStorage.getItem('argus_dashboard_sections');
+    if (stored) {
+      try { return JSON.parse(stored); } catch { /* ignore */ }
+    }
+    return { servers: true, alerts: true, rules: true, history: true, resources: true };
   });
 
   const { toast } = useToast();
@@ -123,6 +139,7 @@ export default function Dashboard() {
       });
     } finally {
       setIsLoading(false);
+      setLastUpdated(new Date());
     }
   };
 
@@ -131,11 +148,14 @@ export default function Dashboard() {
       const rulesRes = await alertRulesApi.getByServer(serverId);
       if (rulesRes.success) setRules(rulesRes.data.slice(0, 3));
 
-      // Fetch sample history (CPU Usage of first server for now)
-      const metricsRes = await serversApi.getMetrics(serverId, { type: 'CPU_USAGE' });
+      // Fetch history with time range filter
+      const rangeMs: Record<string, number> = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '7d': 604800000 };
+      const start = new Date(Date.now() - (rangeMs[timeRange] || 86400000)).toISOString();
+      const metricsRes = await serversApi.getMetrics(serverId, { type: 'CPU_USAGE', start });
       if (metricsRes.success) {
+        const pointCount = timeRange === '1h' ? 30 : timeRange === '6h' ? 36 : timeRange === '7d' ? 40 : 20;
         const data = metricsRes.data
-          .slice(-20)
+          .slice(-pointCount)
           .map((m: Metric) => ({
             time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             value: m.value
@@ -149,11 +169,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
   }, []);
 
-  const handleAcknowledge = async (alertId: number) => {
+  // Re-fetch history when time range changes
+  useEffect(() => {
+    if (servers.length > 0) {
+      fetchRulesAndHistory(servers[0].id);
+    }
+  }, [timeRange]);
+
+  const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
       await alertsApi.acknowledge(alertId);
       setAlerts(alerts.map(a =>
@@ -176,11 +201,14 @@ export default function Dashboard() {
   };
 
   const toggleSection = (section: keyof VisibleSections) => {
-    setVisibleSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
+    setVisibleSections(prev => {
+      const next = { ...prev, [section]: !prev[section] };
+      localStorage.setItem('argus_dashboard_sections', JSON.stringify(next));
+      return next;
+    });
   };
+
+  const prevStatsRef = useRef<typeof stats | null>(null);
 
   const stats = {
     totalServers: servers.length,
@@ -189,11 +217,68 @@ export default function Dashboard() {
     criticalAlerts: alerts.filter(a => a.severity === 'CRITICAL').length,
   };
 
+  // Compute trend by comparing current stats to previous snapshot
+  const computeTrend = (current: number, key: keyof typeof stats): { trend: 'up' | 'down' | 'stable'; trendValue: string } | {} => {
+    const prev = prevStatsRef.current;
+    if (!prev) return {};
+    const diff = current - prev[key];
+    if (diff === 0) return { trend: 'stable' as const, trendValue: 'No change' };
+    return {
+      trend: diff > 0 ? 'up' as const : 'down' as const,
+      trendValue: `${diff > 0 ? '+' : ''}${diff}`,
+    };
+  };
+
+  // Update previous stats ref after each data fetch
+  useEffect(() => {
+    if (!isLoading) {
+      // Delay storing so the current render sees the old value
+      const timeout = setTimeout(() => { prevStatsRef.current = { ...stats }; }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [servers, alerts]);
+
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-10" />
+            </div>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-32 rounded-xl" />
+            ))}
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+          </div>
         </div>
       </MainLayout>
     );
@@ -203,11 +288,20 @@ export default function Dashboard() {
     <MainLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between"
+        >
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground">Dashboard</h1>
             <p className="mt-1 text-muted-foreground">
               Monitor your infrastructure at a glance
+              {lastUpdated && (
+                <span className="ml-2 text-xs text-muted-foreground/70">
+                  · Updated {lastUpdated.toLocaleTimeString()}
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -255,43 +349,67 @@ export default function Dashboard() {
                   <History className="mr-2 h-4 w-4" />
                   System History
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleSections.resources}
+                  onCheckedChange={() => toggleSection('resources')}
+                >
+                  <Book className="mr-2 h-4 w-4" />
+                  Resources
+                </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </motion.div>
 
         {/* Stats */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Total Servers"
-            value={stats.totalServers}
-            icon={<Server className="h-5 w-5" />}
-          />
-          <MetricCard
-            title="Online Servers"
-            value={stats.onlineServers}
-            unit={`/ ${stats.totalServers}`}
-            icon={<Activity className="h-5 w-5" />}
-            status={stats.onlineServers === stats.totalServers ? 'normal' : 'warning'}
-          />
-          <MetricCard
-            title="Active Alerts"
-            value={stats.activeAlerts}
-            icon={<AlertTriangle className="h-5 w-5" />}
-            status={stats.criticalAlerts > 0 ? 'critical' : stats.activeAlerts > 0 ? 'warning' : 'normal'}
-          />
-          <MetricCard
-            title="Critical Alerts"
-            value={stats.criticalAlerts}
-            icon={<Shield className="h-5 w-5" />}
-            status={stats.criticalAlerts > 0 ? 'critical' : 'normal'}
-          />
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
+            <MetricCard
+              title="Total Servers"
+              value={stats.totalServers}
+              icon={<Server className="h-5 w-5" />}
+              {...computeTrend(stats.totalServers, 'totalServers')}
+            />
+          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
+            <MetricCard
+              title="Online Servers"
+              value={stats.onlineServers}
+              unit={`/ ${stats.totalServers}`}
+              icon={<Activity className="h-5 w-5" />}
+              status={stats.onlineServers === stats.totalServers ? 'normal' : 'warning'}
+              {...computeTrend(stats.onlineServers, 'onlineServers')}
+            />
+          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }}>
+            <MetricCard
+              title="Active Alerts"
+              value={stats.activeAlerts}
+              icon={<AlertTriangle className="h-5 w-5" />}
+              status={stats.criticalAlerts > 0 ? 'critical' : stats.activeAlerts > 0 ? 'warning' : 'normal'}
+              {...computeTrend(stats.activeAlerts, 'activeAlerts')}
+            />
+          </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }}>
+            <MetricCard
+              title="Critical Alerts"
+              value={stats.criticalAlerts}
+              icon={<Shield className="h-5 w-5" />}
+              status={stats.criticalAlerts > 0 ? 'critical' : 'normal'}
+              {...computeTrend(stats.criticalAlerts, 'criticalAlerts')}
+            />
+          </motion.div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Servers Section */}
           {visibleSections.servers && (
-            <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+              className="space-y-4"
+            >
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-semibold text-foreground">Servers</h2>
                 <Link to="/servers" className="text-sm text-primary hover:underline flex items-center gap-1">
@@ -320,12 +438,17 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* Alerts Section */}
           {visibleSections.alerts && (
-            <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+              className="space-y-4"
+            >
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-semibold text-foreground">Active Alerts</h2>
                 <Link to="/alerts" className="text-sm text-primary hover:underline flex items-center gap-1">
@@ -353,17 +476,35 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* Recent History Widget */}
           {visibleSections.history && (
-            <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="space-y-4"
+            >
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-semibold text-foreground">System History</h2>
-                <Link to="/history" className="text-sm text-primary hover:underline flex items-center gap-1">
-                  Full History <ArrowRight className="h-3 w-3" />
-                </Link>
+                <div className="flex items-center gap-4">
+                  <Select value={timeRange} onValueChange={setTimeRange}>
+                    <SelectTrigger className="w-[120px] h-8 text-xs">
+                      <SelectValue placeholder="Range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1h">Last Hour</SelectItem>
+                      <SelectItem value="6h">Last 6 Hours</SelectItem>
+                      <SelectItem value="24h">Last 24 Hours</SelectItem>
+                      <SelectItem value="7d">Last 7 Days</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Link to="/history" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    Full History <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-4">
@@ -417,12 +558,17 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* Alert Rules Widget */}
           {visibleSections.rules && (
-            <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="space-y-4"
+            >
               <div className="flex items-center justify-between">
                 <h2 className="font-display text-xl font-semibold text-foreground">Alert Rules</h2>
                 <Link to="/rules" className="text-sm text-primary hover:underline flex items-center gap-1">
@@ -466,9 +612,65 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
         </div>
+
+        {/* Quick Actions / Resources */}
+        {visibleSections.resources && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9 }}
+            className="grid gap-6 md:grid-cols-3"
+          >
+            <Link to="/docs/getting-started" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+                  <Book className="h-5 w-5" />
+                </div>
+                <div className="font-semibold text-foreground">Documentation</div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Read the getting started guide and server setup instructions.
+              </p>
+              <div className="flex items-center text-xs font-medium text-primary group-hover:translate-x-1 transition-transform">
+                Read Docs <ArrowRight className="ml-1 h-3 w-3" />
+              </div>
+            </Link>
+
+            <Link to="/docs/api" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+                  <Code className="h-5 w-5" />
+                </div>
+                <div className="font-semibold text-foreground">API Reference</div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Integrate with your tools using our REST API endpoints.
+              </p>
+              <div className="flex items-center text-xs font-medium text-primary group-hover:translate-x-1 transition-transform">
+                View API <ArrowRight className="ml-1 h-3 w-3" />
+              </div>
+            </Link>
+
+            <Link to="/docs/security" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div className="font-semibold text-foreground">Security</div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                View our security standards, compliance, and best practices.
+              </p>
+              <div className="flex items-center text-xs font-medium text-primary group-hover:translate-x-1 transition-transform">
+                View Security <ArrowRight className="ml-1 h-3 w-3" />
+              </div>
+            </Link>
+          </motion.div>
+        )}
+
       </div>
     </MainLayout>
   );
