@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { AlertCard } from '@/components/AlertCard';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Bell, 
   Loader2, 
   Filter,
-  Shield
+  Shield,
+  Search,
+  Check,
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import { alertsApi, Alert } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -17,12 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAlerts, setSelectedAlerts] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   const fetchAlerts = async () => {
@@ -44,14 +52,18 @@ export default function Alerts() {
 
   useEffect(() => {
     fetchAlerts();
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchAlerts, 10000);
+    return () => clearInterval(interval);
   }, []);
 
-  const handleAcknowledge = async (alertId: number) => {
+  const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
       await alertsApi.acknowledge(alertId);
       setAlerts(alerts.map(a => 
         a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' as const } : a
       ));
+      setSelectedAlerts(prev => { const next = new Set(prev); next.delete(alertId); return next; });
       toast({ title: 'Alert acknowledged' });
     } catch (error) {
       toast({ title: 'Failed to acknowledge alert', variant: 'destructive' });
@@ -62,16 +74,60 @@ export default function Alerts() {
     try {
       await alertsApi.resolve(alertId);
       setAlerts(alerts.filter(a => a.id !== alertId));
+      setSelectedAlerts(prev => { const next = new Set(prev); next.delete(alertId); return next; });
       toast({ title: 'Alert resolved' });
     } catch (error) {
       toast({ title: 'Failed to resolve alert', variant: 'destructive' });
     }
   };
 
+  const handleBulkAcknowledge = async () => {
+    const ids = Array.from(selectedAlerts).filter(id => {
+      const alert = alerts.find(a => a.id === id);
+      return alert && alert.status === 'ACTIVE';
+    });
+    for (const id of ids) {
+      try { await alertsApi.acknowledge(id); } catch { /* continue */ }
+    }
+    setAlerts(prev => prev.map(a => ids.includes(a.id) ? { ...a, status: 'ACKNOWLEDGED' as const } : a));
+    setSelectedAlerts(new Set());
+    toast({ title: `${ids.length} alert(s) acknowledged` });
+  };
+
+  const handleBulkResolve = async () => {
+    const ids = Array.from(selectedAlerts);
+    for (const id of ids) {
+      try { await alertsApi.resolve(id); } catch { /* continue */ }
+    }
+    setAlerts(prev => prev.filter(a => !ids.includes(a.id)));
+    setSelectedAlerts(new Set());
+    toast({ title: `${ids.length} alert(s) resolved` });
+  };
+
+  const toggleSelectAlert = (id: number) => {
+    setSelectedAlerts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedAlerts.size === filteredAlerts.length) {
+      setSelectedAlerts(new Set());
+    } else {
+      setSelectedAlerts(new Set(filteredAlerts.map(a => a.id)));
+    }
+  };
+
   const filteredAlerts = alerts.filter((alert) => {
+    const matchesSearch = searchQuery === '' ||
+      alert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.serverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.message.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSeverity = severityFilter === 'all' || alert.severity === severityFilter;
     const matchesStatus = statusFilter === 'all' || alert.status === statusFilter;
-    return matchesSeverity && matchesStatus;
+    return matchesSearch && matchesSeverity && matchesStatus;
   });
 
   const counts = {
@@ -113,7 +169,17 @@ export default function Alerts() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Search & Filters */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search alerts by title, server, or message..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -161,13 +227,50 @@ export default function Alerts() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Bulk Actions Bar */}
+            <div className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-2">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={filteredAlerts.length > 0 && selectedAlerts.size === filteredAlerts.length}
+                  onCheckedChange={toggleSelectAll}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {selectedAlerts.size > 0 ? `${selectedAlerts.size} selected` : 'Select all'}
+                </span>
+              </div>
+              {selectedAlerts.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkAcknowledge}>
+                    <Check className="mr-1 h-3.5 w-3.5" />
+                    Acknowledge ({selectedAlerts.size})
+                  </Button>
+                  <Button variant="default" size="sm" onClick={handleBulkResolve}>
+                    <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                    Resolve ({selectedAlerts.size})
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedAlerts(new Set())}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {filteredAlerts.map((alert) => (
-              <AlertCard
-                key={alert.id}
-                alert={alert}
-                onAcknowledge={handleAcknowledge}
-                onResolve={handleResolve}
-              />
+              <div key={alert.id} className="flex items-start gap-3">
+                <div className="pt-5">
+                  <Checkbox
+                    checked={selectedAlerts.has(alert.id)}
+                    onCheckedChange={() => toggleSelectAlert(alert.id)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <AlertCard
+                    alert={alert}
+                    onAcknowledge={handleAcknowledge}
+                    onResolve={handleResolve}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         )}
