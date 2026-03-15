@@ -3,13 +3,30 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   Settings as SettingsIcon, 
   Server, 
   Check,
-  Loader2
+  Loader2,
+  Lock,
+  Bell,
+  Trash2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
-import { getApiBaseUrl, setApiBaseUrl } from '@/lib/api';
+import { getApiBaseUrl, setApiBaseUrl, authApi } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,12 +35,63 @@ export default function Settings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testSuccess, setTestSuccess] = useState<boolean | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [emailNotifications, setEmailNotifications] = useState(() => {
+    const saved = localStorage.getItem('argus_email_notifications');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [criticalOnly, setCriticalOnly] = useState(() => {
+    const saved = localStorage.getItem('argus_critical_only');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     setApiUrl(getApiBaseUrl());
   }, []);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      toast({ title: 'Please fill in all password fields', variant: 'destructive' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast({ title: 'New password must be at least 8 characters', variant: 'destructive' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Passwords do not match', variant: 'destructive' });
+      return;
+    }
+    setIsChangingPassword(true);
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      toast({ title: 'Password changed successfully' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch {
+      toast({ title: 'Failed to change password', variant: 'destructive' });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleToggleEmail = (checked: boolean) => {
+    setEmailNotifications(checked);
+    localStorage.setItem('argus_email_notifications', JSON.stringify(checked));
+  };
+
+  const handleToggleCritical = (checked: boolean) => {
+    setCriticalOnly(checked);
+    localStorage.setItem('argus_critical_only', JSON.stringify(checked));
+  };
 
   const handleSaveApiUrl = () => {
     setIsSaving(true);
@@ -169,6 +237,176 @@ export default function Settings() {
                 <span className="font-medium text-foreground">{user?.role || 'N/A'}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Change Password */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Lock className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-semibold text-foreground">
+                Change Password
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Update your account password
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 max-w-md">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min 8 characters)"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+
+            <Button
+              onClick={handleChangePassword}
+              disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+              className="w-fit"
+            >
+              {isChangingPassword ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Lock className="mr-2 h-4 w-4" />
+              )}
+              Update Password
+            </Button>
+          </div>
+        </div>
+
+        {/* Notification Preferences */}
+        <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Bell className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-semibold text-foreground">
+                Notification Preferences
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Control how you receive alert notifications
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4 max-w-md">
+            <div className="flex items-center justify-between rounded-lg border border-border p-4">
+              <div>
+                <p className="font-medium text-foreground">Email Notifications</p>
+                <p className="text-sm text-muted-foreground">Receive alerts via email</p>
+              </div>
+              <Switch checked={emailNotifications} onCheckedChange={handleToggleEmail} />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-border p-4">
+              <div>
+                <p className="font-medium text-foreground">Critical Alerts Only</p>
+                <p className="text-sm text-muted-foreground">Only notify for critical severity</p>
+              </div>
+              <Switch checked={criticalOnly} onCheckedChange={handleToggleCritical} />
+            </div>
+          </div>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="rounded-xl border border-destructive/30 bg-card p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
+              <Trash2 className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-semibold text-destructive">
+                Danger Zone
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Irreversible account actions
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-destructive/20 p-4">
+            <div>
+              <p className="font-medium text-foreground">Delete Account</p>
+              <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your account,
+                    all servers, alert rules, and monitoring data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      toast({ title: 'Account deletion is not yet available via API' });
+                    }}
+                  >
+                    Delete Account
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
 
