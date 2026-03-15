@@ -374,6 +374,8 @@
     0 0 18px rgba(147, 197, 253, 0.28);
 }
 
+
+
 /* Diamonds animation */
 .diamonds-container {
   position: absolute;
@@ -385,6 +387,7 @@
 .diamond {
   position: absolute;
   transform: rotate(45deg);
+  opacity: 0;
   animation: rise-diamond linear infinite;
 }
 
@@ -414,25 +417,6 @@
     0 0 10px rgba(167, 139, 250, 0.3);
 }
 
-@keyframes rise {
-  0% {
-    bottom: -20px;
-    transform: translateX(0) scale(1);
-    opacity: 0;
-  }
-  5% {
-    opacity: 0.8;
-  }
-  95% {
-    opacity: 0.6;
-  }
-  100% {
-    bottom: 105%;
-    transform: translateX(30px) scale(0.9);
-    opacity: 0;
-  }
-}
-
 @keyframes rise-diamond {
   0% {
     transform: rotate(45deg) translate(0, 0) scale(1);
@@ -452,6 +436,27 @@
     opacity: 0;
   }
 }
+
+@keyframes rise {
+  0% {
+    bottom: -20px;
+    transform: translateX(0) scale(1);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.8;
+  }
+  95% {
+    opacity: 0.6;
+  }
+  100% {
+    bottom: 105%;
+    transform: translateX(30px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+
 
 /* Floating animation for orbs */
 @keyframes float {
