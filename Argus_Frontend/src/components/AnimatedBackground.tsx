@@ -1,7 +1,51 @@
+import { useMemo } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export function AnimatedBackground() {
   const { theme } = useTheme();
+
+  // Pre-compute all random values once so they're stable across re-renders
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 50 }, () => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 3}s`,
+        animationDuration: `${2 + Math.random() * 2}s`,
+      })),
+    []
+  );
+
+  const bubbles = useMemo(
+    () =>
+      Array.from({ length: 30 }, () => {
+        const size = 4 + Math.random() * 10;
+        return {
+          left: `${Math.random() * 100}%`,
+          width: `${size}px`,
+          height: `${size}px`,
+          animationDelay: `${Math.random() * 15}s`,
+          animationDuration: `${10 + Math.random() * 15}s`,
+        };
+      }),
+    []
+  );
+
+  const diamonds = useMemo(
+    () =>
+      Array.from({ length: 25 }, (_, i) => {
+        const size = 4 + Math.random() * 6;
+        return {
+          width: `${size}px`,
+          height: `${size}px`,
+          bottom: `${-5 + i * 4}%`,
+          left: `${-5 + i * 4}%`,
+          animationDelay: `${i * 1}s`,
+          animationDuration: `${15 + Math.random() * 10}s`,
+        };
+      }),
+    []
+  );
 
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -16,56 +60,31 @@ export function AnimatedBackground() {
 
       {/* Stars - visible in both modes */}
       <div className={`stars-container ${theme === 'dark' ? 'opacity-100' : 'opacity-30'} transition-opacity duration-500`}>
-        {[...Array(50)].map((_, i) => (
-          <div
-            key={`star-${i}`}
-            className="star"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
-            }}
-          />
+        {stars.map((style, i) => (
+          <div key={`star-${i}`} className="star" style={style} />
         ))}
       </div>
 
       {/* Small Water Bubbles */}
       <div className="bubbles-container">
-        {[...Array(30)].map((_, i) => (
+        {bubbles.map((style, i) => (
           <div
             key={`bubble-${i}`}
             className={`bubble ${theme === 'dark' ? 'bubble-dark' : 'bubble-light'}`}
-            style={{
-              left: `${Math.random() * 100}%`,
-              width: `${4 + Math.random() * 10}px`,
-              height: `${4 + Math.random() * 10}px`,
-              animationDelay: `${Math.random() * 15}s`,
-              animationDuration: `${10 + Math.random() * 15}s`,
-            }}
+            style={style}
           />
         ))}
       </div>
 
       {/* Diamonds - bottom-left to top-right diagonal */}
       <div className="diamonds-container">
-        {[...Array(25)].map((_, i) => {
-          const size = 4 + Math.random() * 6;
-          return (
-            <div
-              key={`diamond-${i}`}
-              className={`diamond ${theme === 'dark' ? 'diamond-dark' : 'diamond-light'}`}
-              style={{
-                width: `${size}px`,
-                height: `${size}px`,
-                bottom: `${-5 + (i * 4)}%`,
-                left: `${-5 + (i * 4)}%`,
-                animationDelay: `${i * 1}s`,
-                animationDuration: `${15 + Math.random() * 10}s`,
-              }}
-            />
-          );
-        })}
+        {diamonds.map((style, i) => (
+          <div
+            key={`diamond-${i}`}
+            className={`diamond ${theme === 'dark' ? 'diamond-dark' : 'diamond-light'}`}
+            style={style}
+          />
+        ))}
       </div>
 
       {/* Subtle floating orbs */}
