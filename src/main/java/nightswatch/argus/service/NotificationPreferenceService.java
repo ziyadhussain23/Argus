@@ -119,7 +119,12 @@ public class NotificationPreferenceService {
      * @return true if SMS should be sent
      */
     public boolean shouldSendSms(User user, boolean isCritical) {
-        if (user.getPhoneNumber() == null || user.getPhoneNumber().isBlank()) {
+        // Re-fetch user to avoid LazyInitializationException when called from an @Async context
+        // where the user object may be a detached proxy from a different Hibernate session
+        String phoneNumber = userRepository.findById(user.getId())
+                .map(User::getPhoneNumber)
+                .orElse(null);
+        if (phoneNumber == null || phoneNumber.isBlank()) {
             return false;
         }
 

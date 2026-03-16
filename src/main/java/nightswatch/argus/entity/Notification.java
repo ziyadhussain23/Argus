@@ -2,6 +2,7 @@ package nightswatch.argus.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -51,6 +52,10 @@ public class Notification {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "notification", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<SmsLog> smsLogs;
 
     public enum NotificationChannel {
         EMAIL, SLACK, WEBHOOK, SMS

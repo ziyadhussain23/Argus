@@ -2,6 +2,7 @@ package nightswatch.argus.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -47,12 +48,15 @@ public class Server {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
     private List<Metric> metrics;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
     private List<AlertRule> alertRules;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
     private List<Alert> alerts;
 

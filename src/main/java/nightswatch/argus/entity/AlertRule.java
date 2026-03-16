@@ -2,6 +2,7 @@ package nightswatch.argus.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -58,6 +59,10 @@ public class AlertRule {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "alertRule", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Alert> alerts;
 
     public enum ConditionOperator {
         GREATER_THAN,

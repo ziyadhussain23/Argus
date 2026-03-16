@@ -2,6 +2,7 @@ package nightswatch.argus.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 
 @Entity
@@ -60,6 +61,10 @@ public class Alert {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "acknowledged_by")
     private User acknowledgedBy;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "alert", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Notification> notifications;
 
     public enum AlertStatus {
         ACTIVE, ACKNOWLEDGED, RESOLVED
