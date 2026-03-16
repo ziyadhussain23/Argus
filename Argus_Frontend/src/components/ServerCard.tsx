@@ -14,9 +14,25 @@ export function ServerCard({ server }: ServerCardProps) {
     ? formatDistanceToNow(new Date(server.lastHeartbeat), { addSuffix: true })
     : 'Never';
 
+  // Compute a health score (0-100) based on status and active alerts
+  const getHealthScore = (): number => {
+    let score = 100;
+    if (server.status === 'OFFLINE') score -= 60;
+    else if (server.status === 'CRITICAL') score -= 50;
+    else if (server.status === 'WARNING') score -= 25;
+    else if (server.status === 'UNKNOWN') score -= 40;
+    // Deduct for active alerts
+    score -= Math.min(server.activeAlerts * 10, 30);
+    return Math.max(0, Math.min(100, score));
+  };
+
+  const healthScore = getHealthScore();
+  const healthColor = healthScore >= 80 ? 'text-green-500 bg-green-500/10' :
+    healthScore >= 50 ? 'text-amber-500 bg-amber-500/10' : 'text-red-500 bg-red-500/10';
+
   const borderColor = {
-    ONLINE: 'hover:border-success/50',
-    OFFLINE: 'hover:border-muted-foreground/50',
+    ONLINE: 'hover:border-green-500/50',
+    OFFLINE: 'hover:border-red-500/50',
     WARNING: 'border-warning/30 hover:border-warning/50',
     CRITICAL: 'border-critical/30 hover:border-critical/50',
     UNKNOWN: 'hover:border-muted-foreground/50',
@@ -50,12 +66,20 @@ export function ServerCard({ server }: ServerCardProps) {
           <Clock className="h-4 w-4" />
           <span>{lastHeartbeat}</span>
         </div>
-        {server.activeAlerts > 0 && (
-          <div className="flex items-center gap-2 text-sm text-warning">
-            <AlertTriangle className="h-4 w-4" />
-            <span>{server.activeAlerts} active alert{server.activeAlerts !== 1 ? 's' : ''}</span>
-          </div>
-        )}
+        <div className="flex items-center justify-end gap-2">
+          {server.activeAlerts > 0 && (
+            <span className="flex items-center gap-1 text-sm text-warning">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {server.activeAlerts}
+            </span>
+          )}
+          <span className={cn(
+            'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold',
+            healthColor
+          )}>
+            {healthScore}
+          </span>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-border pt-4">

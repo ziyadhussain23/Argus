@@ -133,7 +133,7 @@ const faqs = [
 
 export default function FAQ() {
     const navigate = useNavigate();
-    const [activeCategory, setActiveCategory] = useState('general');
+    const [activeCategory, setActiveCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [openQuestions, setOpenQuestions] = useState<string[]>([]);
 

@@ -11,8 +11,8 @@ interface StatusBadgeProps {
 }
 
 const statusStyles: Record<string, string> = {
-  ONLINE: 'bg-success/10 text-success border-success/30',
-  OFFLINE: 'bg-muted text-muted-foreground border-muted-foreground/30',
+  ONLINE: 'bg-green-500/10 text-green-500 border-green-500/30',
+  OFFLINE: 'bg-red-500/10 text-red-500 border-red-500/30',
   WARNING: 'bg-warning/10 text-warning border-warning/30',
   CRITICAL: 'bg-critical/10 text-critical border-critical/30',
   UNKNOWN: 'bg-muted text-muted-foreground border-muted-foreground/30',

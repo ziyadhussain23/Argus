@@ -1,18 +1,22 @@
+import { useState } from 'react';
 import { Alert } from '@/lib/api';
 import { StatusBadge } from './StatusBadge';
 import { Button } from '@/components/ui/button';
-import { Bell, Check, CheckCircle2, Server, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Bell, Check, CheckCircle2, Server, Clock, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface AlertCardProps {
   alert: Alert;
-  onAcknowledge?: (alertId: number) => void;
+  onAcknowledge?: (alertId: number, note?: string) => void;
   onResolve?: (alertId: number) => void;
   isLoading?: boolean;
 }
 
 export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertCardProps) {
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [ackNote, setAckNote] = useState('');
   const triggeredTime = formatDistanceToNow(new Date(alert.triggeredAt), { addSuffix: true });
 
   const severityStyles = {
@@ -72,25 +76,65 @@ export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertC
         </div>
         
         {alert.status === 'ACTIVE' && (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAcknowledge?.(alert.id)}
-              disabled={isLoading}
-            >
-              <Check className="mr-1 h-3.5 w-3.5" />
-              Acknowledge
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => onResolve?.(alert.id)}
-              disabled={isLoading}
-            >
-              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-              Resolve
-            </Button>
+          <div className="space-y-2">
+            {showNoteInput ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Add a note (optional)..."
+                  value={ackNote}
+                  onChange={(e) => setAckNote(e.target.value)}
+                  className="h-8 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onAcknowledge?.(alert.id, ackNote || undefined);
+                      setShowNoteInput(false);
+                      setAckNote('');
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onAcknowledge?.(alert.id, ackNote || undefined);
+                    setShowNoteInput(false);
+                    setAckNote('');
+                  }}
+                  disabled={isLoading}
+                >
+                  <Check className="mr-1 h-3.5 w-3.5" />
+                  Confirm
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setShowNoteInput(false); setAckNote(''); }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNoteInput(true)}
+                  disabled={isLoading}
+                >
+                  <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                  Acknowledge
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onResolve?.(alert.id)}
+                  disabled={isLoading}
+                >
+                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                  Resolve
+                </Button>
+              </div>
+            )}
           </div>
         )}
         
