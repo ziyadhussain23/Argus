@@ -15,6 +15,17 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,12 +40,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  Plus, 
-  Loader2, 
-  AlertTriangle, 
+import {
+  Plus,
+  Loader2,
+  AlertTriangle,
   Trash2,
-  Server
+  Server,
+  Lightbulb,
+  Cpu,
+  MemoryStick,
+  HardDrive,
+  Activity,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { serversApi, alertRulesApi, Server as ServerType, AlertRule } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -61,6 +79,70 @@ const SEVERITIES = [
   { value: 'INFO', label: 'Info' },
   { value: 'WARNING', label: 'Warning' },
   { value: 'CRITICAL', label: 'Critical' },
+];
+
+// Suggested alert rule templates with descriptions
+const RULE_SUGGESTIONS = [
+  {
+    name: 'High CPU Usage',
+    description: 'Triggers when CPU usage exceeds 90% for 60 seconds. Critical for detecting processing bottlenecks and preventing system slowdowns.',
+    metricType: 'CPU_USAGE',
+    operator: 'GREATER_THAN',
+    threshold: 90,
+    duration: 60,
+    severity: 'CRITICAL',
+    cooldown: 5,
+  },
+  {
+    name: 'Memory Running Low',
+    description: 'Alerts when memory usage goes above 85%. Helps prevent out-of-memory errors and application crashes.',
+    metricType: 'MEMORY_USAGE',
+    operator: 'GREATER_THAN',
+    threshold: 85,
+    duration: 120,
+    severity: 'WARNING',
+    cooldown: 10,
+  },
+  {
+    name: 'Disk Space Critical',
+    description: 'Warns when disk usage exceeds 90%. Prevents service disruptions caused by full disks.',
+    metricType: 'DISK_USAGE',
+    operator: 'GREATER_THAN',
+    threshold: 90,
+    duration: 300,
+    severity: 'CRITICAL',
+    cooldown: 30,
+  },
+  {
+    name: 'High Load Average',
+    description: 'Monitors system load. Triggers when load average exceeds 5.0, indicating the system may be overloaded.',
+    metricType: 'LOAD_AVERAGE',
+    operator: 'GREATER_THAN',
+    threshold: 5,
+    duration: 180,
+    severity: 'WARNING',
+    cooldown: 15,
+  },
+  {
+    name: 'Low Memory Available',
+    description: 'Alerts when available memory drops below 500MB. Essential for memory-intensive applications.',
+    metricType: 'MEMORY_AVAILABLE',
+    operator: 'LESS_THAN',
+    threshold: 500,
+    duration: 60,
+    severity: 'WARNING',
+    cooldown: 5,
+  },
+  {
+    name: 'Too Many Processes',
+    description: 'Triggers when process count exceeds 500. May indicate runaway processes or resource leaks.',
+    metricType: 'PROCESS_COUNT',
+    operator: 'GREATER_THAN',
+    threshold: 500,
+    duration: 120,
+    severity: 'WARNING',
+    cooldown: 10,
+  },
 ];
 
 export default function AlertRules() {
@@ -112,7 +194,7 @@ export default function AlertRules() {
 
   const fetchRules = async () => {
     if (!selectedServer) return;
-    
+
     try {
       const response = await alertRulesApi.getByServer(Number(selectedServer));
       if (response.success) {
@@ -156,10 +238,10 @@ export default function AlertRules() {
         toast({ title: 'Alert rule created' });
       }
     } catch (error) {
-      toast({ 
-        title: 'Failed to create rule', 
+      toast({
+        title: 'Failed to create rule',
         description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
     } finally {
       setIsSubmitting(false);
@@ -219,7 +301,7 @@ export default function AlertRules() {
               Configure threshold-based alerts for your servers
             </p>
           </div>
-          
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button disabled={servers.length === 0}>
@@ -234,7 +316,7 @@ export default function AlertRules() {
                   Set up a new threshold-based alert for the selected server.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Rule Name</Label>
@@ -445,19 +527,123 @@ export default function AlertRules() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteRule(rule.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Alert Rule?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the rule "{rule.name}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteRule(rule.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {/* Suggested Rules Section */}
+        {servers.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-6 mt-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+                <Lightbulb className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  Suggested Alert Rules
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Click to quickly set up common monitoring alerts
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {RULE_SUGGESTIONS.map((suggestion, index) => {
+                const getIcon = () => {
+                  switch (suggestion.metricType) {
+                    case 'CPU_USAGE': return Cpu;
+                    case 'MEMORY_USAGE': return MemoryStick;
+                    case 'MEMORY_AVAILABLE': return MemoryStick;
+                    case 'DISK_USAGE': return HardDrive;
+                    case 'LOAD_AVERAGE': return Activity;
+                    case 'PROCESS_COUNT': return Zap;
+                    default: return AlertTriangle;
+                  }
+                };
+                const Icon = getIcon();
+
+                return (
+                  <div
+                    key={index}
+                    className="group relative rounded-xl border border-border bg-muted/30 p-4 hover:border-primary/50 hover:bg-muted/50 transition-all cursor-pointer"
+                    onClick={() => {
+                      setFormData({
+                        name: suggestion.name,
+                        description: suggestion.description,
+                        metricType: suggestion.metricType,
+                        conditionOperator: suggestion.operator,
+                        thresholdValue: suggestion.threshold.toString(),
+                        durationSeconds: suggestion.duration.toString(),
+                        severity: suggestion.severity,
+                        cooldownMinutes: suggestion.cooldown.toString(),
+                      });
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${suggestion.severity === 'CRITICAL'
+                          ? 'bg-destructive/10 text-destructive'
+                          : 'bg-amber-500/10 text-amber-500'
+                        }`}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium text-foreground truncate">
+                            {suggestion.name}
+                          </h4>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${suggestion.severity === 'CRITICAL'
+                              ? 'bg-destructive/10 text-destructive'
+                              : suggestion.severity === 'WARNING'
+                                ? 'bg-amber-500/10 text-amber-500'
+                                : 'bg-blue-500/10 text-blue-500'
+                            }`}>
+                            {suggestion.severity}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {suggestion.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <code className="bg-muted px-1.5 py-0.5 rounded">
+                            {suggestion.metricType.replace('_', ' ')} {suggestion.operator === 'GREATER_THAN' ? '>' : '<'} {suggestion.threshold}
+                          </code>
+                        </div>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-2" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
