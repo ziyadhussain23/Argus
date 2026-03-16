@@ -111,7 +111,7 @@ export default function ServerDetail() {
 
     return [
       {
-        topic: `/topic/metrics/server/${serverId}`,
+        topic: `/topic/servers/${serverId}/metrics`,
         onMessage: (incoming: Metric[]) => {
           setMetrics((prev) => {
             const next = { ...prev };

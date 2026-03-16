@@ -56,6 +56,13 @@ interface VisibleSections {
   resources: boolean;
 }
 
+const HISTORY_POINTS_BY_RANGE: Record<string, number> = {
+  '1h': 30,
+  '6h': 36,
+  '24h': 20,
+  '7d': 40,
+};
+
 export default function Dashboard() {
   const [servers, setServers] = useState<ServerType[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -76,6 +83,7 @@ export default function Dashboard() {
 
   const { toast } = useToast();
   const { user } = useAuth();
+  const primaryServerId = servers[0]?.id;
 
   const realtimeSubscriptions = useMemo(() => {
     if (!user) return [];
@@ -112,8 +120,36 @@ export default function Dashboard() {
           });
         },
       },
+      ...(primaryServerId
+        ? [{
+          topic: `/topic/servers/${primaryServerId}/metrics`,
+          onMessage: (incoming: Metric[]) => {
+            const incomingCpu = incoming.filter((metric) => metric.metricType === 'CPU_USAGE');
+            if (incomingCpu.length === 0) return;
+
+            setHistoryData((prev) => {
+              const next = [...prev];
+              incomingCpu.forEach((metric) => {
+                next.push({
+                  time: new Date(metric.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  }),
+                  value: metric.value,
+                });
+              });
+
+              const maxPoints = HISTORY_POINTS_BY_RANGE[timeRange] || 20;
+              return next.slice(-maxPoints);
+            });
+
+            setLastUpdated(new Date());
+          },
+        }]
+        : []),
     ];
-  }, [user]);
+  }, [user, primaryServerId, timeRange]);
 
   useRealtime(realtimeSubscriptions, !!user);
 
@@ -153,7 +189,7 @@ export default function Dashboard() {
       const start = new Date(Date.now() - (rangeMs[timeRange] || 86400000)).toISOString();
       const metricsRes = await serversApi.getMetrics(serverId, { type: 'CPU_USAGE', start });
       if (metricsRes.success) {
-        const pointCount = timeRange === '1h' ? 30 : timeRange === '6h' ? 36 : timeRange === '7d' ? 40 : 20;
+        const pointCount = HISTORY_POINTS_BY_RANGE[timeRange] || 20;
         const data = metricsRes.data
           .slice(-pointCount)
           .map((m: Metric) => ({
@@ -177,6 +213,15 @@ export default function Dashboard() {
       fetchRulesAndHistory(servers[0].id);
     }
   }, [timeRange]);
+
+  useEffect(() => {
+    if (primaryServerId) {
+      fetchRulesAndHistory(primaryServerId);
+    } else {
+      setRules([]);
+      setHistoryData([]);
+    }
+  }, [primaryServerId]);
 
   const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
