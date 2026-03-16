@@ -126,7 +126,7 @@ public class AlertEvaluationService {
         updateServerStatus(rule.getServer(), rule.getSeverity());
         
         // Send notification
-        notificationService.sendAlertNotification(alert);
+        notificationService.sendAlertNotification(alert.getId());
 
         publishAlertUpdate(alert);
     }

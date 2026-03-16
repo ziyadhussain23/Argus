@@ -11,6 +11,7 @@ import nightswatch.argus.entity.Notification;
 import nightswatch.argus.entity.User;
 import nightswatch.argus.exception.SmsDeliveryException;
 import nightswatch.argus.exception.SmsRateLimitExceededException;
+import nightswatch.argus.repository.AlertRepository;
 import nightswatch.argus.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -30,6 +31,7 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final AlertRepository alertRepository;
     private final JavaMailSender mailSender;
     private final NotificationPreferenceService preferenceService;
     private final SmsService smsService;
@@ -39,9 +41,12 @@ public class NotificationService {
 
     private static final int MAX_RETRIES = 3;
 
-    @Async
+    @Async("taskExecutor")
     @Transactional
-    public void sendAlertNotification(Alert alert) {
+    public void sendAlertNotification(Long alertId) {
+        Alert alert = alertRepository.findById(alertId)
+                .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + alertId));
+
         User owner = alert.getServer().getOwner();
         boolean isCritical = alert.getSeverity() == AlertRule.AlertSeverity.CRITICAL;
         
