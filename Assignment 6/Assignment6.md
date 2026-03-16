@@ -1,77 +1,73 @@
-# CS 331 — Assignment 6 | Argus: UI Design & Implementation
+# Assignment 6 — Argus: UI Design & Implementation
 
-> **Course:** CS 331 — Software Engineering Lab | **Assignment:** 6 | **Total Marks:** 20
+> **Course:** CS 331 — Software Engineering Lab | **Marks:** 20 | **Team:** NightsWatch
 >
-> **Project:** Argus — Real-Time Server Monitoring & Alert System | **Team:** NightsWatch
->
-> **Repo:** [https://github.com/ziyadhussain23/Argus](https://github.com/ziyadhussain23/Argus)
+> **Project:** Argus — Server Monitoring System | **Repo:** [github.com/ziyadhussain23/Argus](https://github.com/ziyadhussain23/Argus)
 
 ---
 
-# Part I — UI Choice & Justification [10 Marks]
+# Part I — Why We Chose This UI [10 Marks]
 
-## UI Type Chosen: Direct Manipulation Interface (Web-Based GUI)
+## Our Choice: Web-Based GUI (Direct Manipulation Interface)
 
-We chose a **Direct Manipulation Interface** — users interact by **clicking buttons, viewing live charts, toggling switches, and reading visual indicators** in a web browser.
+We built Argus as a **website** where users click buttons, view live charts, and toggle switches — just like any modern web app.
 
-> Like a car dashboard — you don't type commands to see your speed. You just look at it. Argus works the same way for servers.
+> Think of a car dashboard — you don't type commands to check speed, you just look at it. Argus works the same way for servers.
 
-### Why This UI — 5 Reasons
+### 5 Reasons
 
-1. **Live data needs visual charts** — CPU/memory changes every 5 seconds via WebSocket. Only charts can show this clearly.
-2. **10+ pages need easy navigation** — Sidebar lets users jump between Dashboard, Servers, Alerts, History, Settings in one click.
-3. **Easy for non-technical users** — Standard buttons, forms, toggles, inline error messages, dark/light theme.
+1. **Charts show live data best** — CPU/memory updates every 5 seconds. Only charts can show this clearly.
+2. **Easy to move around** — Sidebar lets users switch between pages in one click.
+3. **Anyone can use it** — Simple buttons, forms, and toggles. No coding knowledge needed.
 4. **Complex data display** — History page: select server + time frame → view chart → export as PNG/PDF/CSV/JSON — all in one screen.
-5. **No installation needed** — Works in any browser. Just open the link and start monitoring.
+5. **No install needed** — Just open the browser and start using it.
 
-### Comparison Table
+### Why Not Other UI Types?
 
-| **UI Type** | **Problem for Argus** | **Decision** |
+| UI Type | Why Not? | |
 | --- | --- | --- |
-| Command Language (CLI) | Cannot show charts. No visual overview. | ❌ Rejected |
-| Menu-Based Interface | Too slow for 10+ pages. No live data. | ❌ Rejected |
-| Form Fill-In Interface | Monitoring = viewing, not entering data. | ❌ Rejected |
-| Natural Language Interface | Too slow for critical monitoring alerts. | ❌ Rejected |
-| **Direct Manipulation (Web GUI)** | Perfect for real-time visual monitoring. | ✅ Chosen |
+| CLI (Command Line) | Can't show charts or graphs | ❌ |
+| Menu-Based | Too slow, can't show live data | ❌ |
+| Form-Based | Monitoring = watching, not filling forms | ❌ |
+| Voice/Natural Language | Too slow for urgent alerts | ❌ |
+| **Web GUI** | **Shows live charts, easy to navigate** | ✅ |
 
-### UI Architecture
+### How the App is Built
 
 ```mermaid
 graph TD
-    A["Browser"] --> B["React SPA"]
-    B --> C["React Router v6"]
-    C --> D["Landing / Auth Pages"]
-    C --> F["Protected Pages (JWT)"]
+    A["Browser"] --> B["React App"]
+    B --> C["Router"]
+    C --> D["Public Pages: Landing, Login, Register"]
+    C --> F["Protected Pages (need login)"]
     F --> G["Dashboard"]
-    F --> H["Servers / Server Detail"]
-    F --> I["Alerts / Alert Rules"]
+    F --> H["Servers"]
+    F --> I["Alerts"]
     F --> J["History"]
     F --> K["Settings"]
-    B --> M["WebSocket (STOMP) — Live metrics"]
-    B --> N["REST API (Axios) — CRUD"]
+    B --> M["WebSocket — sends live data"]
+    B --> N["REST API — loads/saves data"]
     M --> O["Spring Boot Backend"]
     N --> O
 ```
 
 ---
 
-# Part II — UI Implementation & User Interactions [10 Marks]
+# Part II — What We Built [10 Marks]
 
-## Tech Stack
+## Tools Used
 
-| Layer | Tools |
+| Part | Tools |
 | --- | --- |
-| Frontend | React 18, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
-| Routing | React Router v6 |
-| Real-time | WebSocket (STOMP/SockJS) |
-| API | Axios + React Query |
-| Backend | Spring Boot (Java), MySQL, Redis, JWT Auth |
+| Frontend | React, TypeScript, Tailwind CSS, shadcn/ui, Recharts |
+| Live Data | WebSocket (STOMP/SockJS) |
+| Backend | Spring Boot (Java), MySQL, Redis, JWT |
 
-## Page Map
+## How Pages Connect
 
 ```mermaid
 graph LR
-    L["Landing /"] --> LG["Login"]
+    L["Landing"] --> LG["Login"]
     L --> RG["Register"]
     LG --> DB["Dashboard"]
     DB --> SV["Servers"] --> SD["Server Detail"]
@@ -84,68 +80,58 @@ graph LR
 ---
 
 ## 1. Landing Page
-
-First page users see — product intro with **Get Started** and **Sign In** buttons.
+Home page with **Get Started** and **Sign In** buttons.
 
 ![Landing Page](screenshot-landing.png)
 
 ```tsx
-<Button size="lg" onClick={() => navigate("/register")}>Get Started</Button>
-<Button size="lg" variant="outline" onClick={() => navigate("/login")}>Sign In</Button>
+<Button onClick={() => navigate("/register")}>Get Started</Button>
+<Button onClick={() => navigate("/login")}>Sign In</Button>
 ```
 
 ## 2. Login Page
-
-Email + password form with inline validation. On success → JWT token saved → redirect to Dashboard.
+User types email + password → app saves login token → goes to Dashboard.
 
 ![Login Page](screenshot-login.png)
 
 ```tsx
-const onSubmit = async (values) => {
-  await login(values.email, values.password);
-  navigate("/dashboard");
-};
+await login(values.email, values.password);
+navigate("/dashboard");
 ```
 
 ## 3. Register Page
-
-Signup form with password strength rules. Sends verification email after registration.
+Signup form. After signing up, a verification email is sent.
 
 ![Register Page](screenshot-register.png)
 
 ```tsx
-const onSubmit = async (values) => {
-  await register(values.name, values.email, values.password);
-  toast({ title: "Account created!", description: "Please verify your email." });
-};
+await register(values.name, values.email, values.password);
+toast({ title: "Account created! Please verify your email." });
 ```
 
 ## 4. Dashboard
-
-Main page after login — 4 summary cards (Total Servers, Online, Active Alerts, Avg CPU) + server list.
+Shows 4 cards: Total Servers, Online, Active Alerts, Avg CPU — plus server list.
 
 ![Dashboard](screenshot-dashboard.png)
 
 ```tsx
-<MetricCard title="Total Servers" value={summary?.totalServers} icon={<Server />} />
-<MetricCard title="Online" value={summary?.online} icon={<CheckCircle />} color="green" />
-<MetricCard title="Active Alerts" value={summary?.activeAlerts} icon={<Bell />} color="red" />
+<MetricCard title="Total Servers" value={summary?.totalServers} />
+<MetricCard title="Online" value={summary?.online} color="green" />
+<MetricCard title="Active Alerts" value={summary?.activeAlerts} color="red" />
 ```
 
 ## 5. Servers Page
-
-Server list with status badges (🟢 Online, 🔴 Critical). **Add Server** button opens a dialog.
+Lists all servers with colored status badges. "Add Server" button to add new ones.
 
 ![Servers Page](screenshot-servers.png)
 
 ```tsx
-<Button onClick={() => setAddOpen(true)}><Plus /> Add Server</Button>
+<Button onClick={() => setAddOpen(true)}>Add Server</Button>
 {servers?.map(s => <ServerCard key={s.id} server={s} />)}
 ```
 
 ## 6. Server Detail
-
-4 live charts (CPU, Memory, Disk, Network) updating every 5s via WebSocket — no page refresh needed.
+4 live charts (CPU, Memory, Disk, Network) that update every 5 seconds — no refresh needed.
 
 ![Server Detail](screenshot-server-detail.png)
 
@@ -157,33 +143,28 @@ client.subscribe(`/topic/server/${id}/metrics`, (msg) => {
 ```
 
 ## 7. Alerts Page
-
-All alerts with filter (All / Active / Resolved). Severity shown as CRITICAL 🔴, WARNING 🟡, INFO 🔵.
+Shows all alerts. Filter by: All, Active, or Resolved. Colors: 🔴 Critical, 🟡 Warning, 🔵 Info.
 
 ![Alerts Page](screenshot-alerts.png)
 
 ```tsx
 {["all", "active", "resolved"].map(f => (
-  <Button variant={filter === f ? "default" : "outline"} onClick={() => setFilter(f)}>{f}</Button>
+  <Button onClick={() => setFilter(f)}>{f}</Button>
 ))}
-{alerts?.map(a => <AlertCard key={a.id} alert={a} />)}
 ```
 
 ## 8. Alert Rules
-
-Create rules like "Alert when CPU > 85%". Each rule has an on/off toggle.
+Set rules like "Alert me if CPU > 85%". Each rule has an on/off switch.
 
 ![Alert Rules Page](screenshot-alert-rules.png)
 
 ```tsx
-<TableCell>{rule.metric}</TableCell>
-<TableCell>{rule.threshold}%</TableCell>
+<TableCell>{rule.metric} > {rule.threshold}%</TableCell>
 <TableCell><Switch checked={rule.enabled} onCheckedChange={() => toggleRule(rule.id)} /></TableCell>
 ```
 
 ## 9. History Page
-
-Select server + time frame (1h → 30d) → view chart → export as PNG/PDF/CSV/JSON.
+Pick a server and time range → see chart → download as PNG, PDF, CSV, or JSON.
 
 ![History Page](screenshot-history.png)
 
@@ -191,113 +172,94 @@ Select server + time frame (1h → 30d) → view chart → export as PNG/PDF/CSV
 <ServerSelector value={serverId} onChange={setServerId} />
 <TimeFrameSelector value={timeFrame} onChange={setTimeFrame} />
 <AreaChart data={historyData} />
-{["PNG", "PDF", "CSV", "JSON"].map(fmt => (
-  <Button onClick={() => handleExport(fmt)}>Export {fmt}</Button>
-))}
 ```
 
 ## 10. Settings
-
-Profile editing, email alert toggle, dark/light theme switch.
+Edit profile, turn email alerts on/off, switch between dark and light theme.
 
 ![Settings Page](screenshot-settings.png)
 
 ```tsx
-<Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} /> {/* Email toggle */}
+<Switch checked={emailAlerts} onCheckedChange={setEmailAlerts} />
 <ThemeToggle /> {/* Dark/Light mode */}
 ```
 
 ---
 
-## Reusable Components
+## Shared Components (used on many pages)
 
-**Sidebar** — Left navigation, always visible. Active page is highlighted. WebSocket status indicator (🟢/🔴).
-
-![Sidebar Navigation](screenshot-dashboard.png)
-
-**StatusBadge** — Color-coded labels: Online (green), Warning (yellow), Critical (red), Offline (gray).
-
-**MetricCard** — Displays a single metric (e.g., CPU: 72%) with icon and optional trend arrow.
-
-**ThemeToggle** — Switches dark ↔ light mode. Saved in localStorage so it persists across refreshes.
-
----
-
-## User Interaction Flows
-
-### Flow 1: Register → Login → Dashboard
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant React
-    participant Spring as Spring Boot
-    participant Email as Gmail SMTP
-    User->>React: Fill Register form
-    React->>Spring: POST /api/auth/register
-    Spring->>Email: Send verification email
-    User->>Spring: Click verify link
-    User->>React: Login with email + password
-    Spring-->>React: JWT Token
-    React-->>User: Redirect to Dashboard
-```
-
-### Flow 2: Dashboard → Server → Live Charts
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant React
-    participant API as REST API
-    participant WS as WebSocket
-    User->>React: Open Dashboard
-    React->>API: GET /api/dashboard/summary
-    User->>React: Click a server
-    React->>WS: Subscribe /topic/server/{id}/metrics
-    WS-->>React: Live data every 5s
-    React-->>User: 4 charts update in real time
-```
-
-### Flow 3: Create Alert Rule → Get Alert
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant React
-    participant Spring as Spring Boot
-    participant Agent
-    User->>React: Create rule: CPU > 85%
-    React->>Spring: POST /api/alert-rules
-    Agent->>Spring: Reports CPU = 90%
-    Spring->>Spring: Rule triggered!
-    Spring-->>React: Push alert via WebSocket
-    React-->>User: Shows CRITICAL alert 🔴
-```
-
-### Flow 4: History → Export
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant React
-    participant API
-    User->>React: Select server + time frame
-    React->>API: GET /api/history?serverId=X&timeFrame=24h
-    React-->>User: Render chart
-    User->>React: Click Export PNG
-    React-->>User: Downloads file
-```
-
----
-
-## Summary
-
-| Feature | Implementation |
+| Component | What it does |
 | --- | --- |
-| Pages | 10 pages covering all monitoring tasks |
-| Components | Sidebar, MetricCard, StatusBadge, ServerCard, AlertCard, ThemeToggle |
-| Real-time | WebSocket charts updating every 5 seconds |
-| Security | JWT tokens protect all pages |
-| Export | PNG, PDF, CSV, JSON from History page |
-| Theme | Dark/light mode saved in localStorage |
-| Alerts | Email notifications + in-app alerts with severity badges |
+| **Sidebar** | Left menu for navigation. Shows which page is active. Has a 🟢/🔴 connection light. |
+| **StatusBadge** | Colored label — green (Online), yellow (Warning), red (Critical), gray (Offline) |
+| **MetricCard** | Shows one number with icon, like "CPU: 72%" |
+| **ThemeToggle** | Button to switch dark/light mode. Remembers your choice. |
+
+![Sidebar shown in Dashboard](screenshot-dashboard.png)
+
+---
+
+## How Users Interact (4 Flows)
+
+### Flow 1: Sign Up → Login → See Dashboard
+
+```mermaid
+sequenceDiagram
+    actor User
+    User->>React: Fill signup form
+    React->>Spring Boot: Save new user
+    Spring Boot->>Gmail: Send verification email
+    User->>React: Login after verifying
+    Spring Boot-->>React: Give login token
+    React-->>User: Show Dashboard
+```
+
+### Flow 2: Open Server → Watch Live Charts
+
+```mermaid
+sequenceDiagram
+    actor User
+    User->>React: Open Dashboard
+    React->>API: Get server summary
+    User->>React: Click a server
+    React->>WebSocket: Connect for live data
+    WebSocket-->>React: New data every 5 sec
+    React-->>User: Charts update live
+```
+
+### Flow 3: Set Alert Rule → Get Notified
+
+```mermaid
+sequenceDiagram
+    actor User
+    User->>React: Create rule: CPU > 85%
+    React->>Spring Boot: Save rule
+    Agent->>Spring Boot: Reports CPU = 90%
+    Spring Boot-->>React: Send alert
+    React-->>User: Shows 🔴 CRITICAL alert
+```
+
+### Flow 4: View History → Download Report
+
+```mermaid
+sequenceDiagram
+    actor User
+    User->>React: Pick server + time range
+    React->>API: Get history data
+    React-->>User: Show chart
+    User->>React: Click Export PNG
+    React-->>User: File downloads
+```
+
+---
+
+## Quick Summary
+
+| What | Details |
+| --- | --- |
+| Pages | 10 (Landing, Login, Register, Dashboard, Servers, Server Detail, Alerts, Alert Rules, History, Settings) |
+| Live Data | Charts update every 5 sec via WebSocket |
+| Security | JWT tokens — must login to see pages |
+| Export | PNG, PDF, CSV, JSON |
+| Theme | Dark/light mode, saved in browser |
+| Alerts | Email + in-app with colored severity badges |
