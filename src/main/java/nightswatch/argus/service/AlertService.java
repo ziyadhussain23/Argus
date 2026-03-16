@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nightswatch.argus.dto.request.AlertRuleRequest;
 import nightswatch.argus.dto.response.AlertResponse;
+import nightswatch.argus.dto.response.AlertRuleResponse;
 import nightswatch.argus.entity.Alert;
 import nightswatch.argus.entity.AlertRule;
 import nightswatch.argus.entity.Server;
@@ -28,7 +29,7 @@ public class AlertService {
     private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
-    public AlertRule createAlertRule(AlertRuleRequest request, User owner) {
+    public AlertRuleResponse createAlertRule(AlertRuleRequest request, User owner) {
         Server server = serverRepository.findById(request.getServerId())
                 .orElseThrow(() -> new RuntimeException("Server not found"));
         
@@ -52,10 +53,10 @@ public class AlertService {
         rule = alertRuleRepository.save(rule);
         log.info("Created alert rule: {} for server: {}", rule.getName(), server.getName());
         
-        return rule;
+        return AlertRuleResponse.fromEntity(rule);
     }
 
-    public List<AlertRule> getAlertRulesByServer(Long serverId, User owner) {
+    public List<AlertRuleResponse> getAlertRulesByServer(Long serverId, User owner) {
         Server server = serverRepository.findById(serverId)
                 .orElseThrow(() -> new RuntimeException("Server not found"));
         
@@ -63,7 +64,9 @@ public class AlertService {
             throw new RuntimeException("Access denied");
         }
         
-        return alertRuleRepository.findByServer(server);
+        return alertRuleRepository.findByServer(server).stream()
+                .map(AlertRuleResponse::fromEntity)
+                .toList();
     }
 
     @Transactional

@@ -4,8 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import nightswatch.argus.dto.request.AlertRuleRequest;
 import nightswatch.argus.dto.response.AlertResponse;
+import nightswatch.argus.dto.response.AlertRuleResponse;
 import nightswatch.argus.dto.response.ApiResponse;
-import nightswatch.argus.entity.AlertRule;
 import nightswatch.argus.entity.User;
 import nightswatch.argus.service.AlertService;
 import org.springframework.http.ResponseEntity;
@@ -24,20 +24,20 @@ public class AlertController {
     // ==================== Alert Rules ====================
 
     @PostMapping("/rules")
-    public ResponseEntity<ApiResponse<AlertRule>> createAlertRule(
+    public ResponseEntity<ApiResponse<AlertRuleResponse>> createAlertRule(
             @Valid @RequestBody AlertRuleRequest request,
             @AuthenticationPrincipal User user) {
         
-        AlertRule rule = alertService.createAlertRule(request, user);
+        AlertRuleResponse rule = alertService.createAlertRule(request, user);
         return ResponseEntity.ok(ApiResponse.success("Alert rule created", rule));
     }
 
     @GetMapping("/rules/server/{serverId}")
-    public ResponseEntity<ApiResponse<List<AlertRule>>> getAlertRules(
+    public ResponseEntity<ApiResponse<List<AlertRuleResponse>>> getAlertRules(
             @PathVariable Long serverId,
             @AuthenticationPrincipal User user) {
         
-        List<AlertRule> rules = alertService.getAlertRulesByServer(serverId, user);
+        List<AlertRuleResponse> rules = alertService.getAlertRulesByServer(serverId, user);
         return ResponseEntity.ok(ApiResponse.success(rules));
     }
 
