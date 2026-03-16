@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import {
   Activity, Server, Bell, Shield, Zap, LineChart, ChevronRight,
@@ -47,6 +48,8 @@ const faqs = [
 ];
 
 export default function Index() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen overflow-x-hidden">
       {/* Header */}
@@ -67,12 +70,20 @@ export default function Index() {
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <Button variant="ghost" asChild>
-              <Link to="/login">Sign In</Link>
-            </Button>
-            <Button asChild>
-              <Link to="/register">Get Started</Link>
-            </Button>
+            {isAuthenticated ? (
+              <Button asChild>
+                <Link to="/dashboard">Dashboard</Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link to="/login">Sign In</Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/register">Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>

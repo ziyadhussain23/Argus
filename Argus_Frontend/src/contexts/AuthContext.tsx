@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { User, getToken, setToken, removeToken } from '@/lib/api';
 
 interface AuthContextType {
@@ -11,44 +11,131 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const AUTH_USER_KEY = 'argus_user';
+const UNAUTHORIZED_EVENT = 'argus:unauthorized';
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    // JWT payload uses base64url, so normalize before decoding.
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function getTokenExpiryMs(token: string): number | null {
+  const payload = decodeJwtPayload(token);
+  if (!payload) return null;
+
+  const exp = payload.exp;
+  if (typeof exp !== 'number') return null;
+  return exp * 1000;
+}
+
+function isTokenExpired(token: string): boolean {
+  const expMs = getTokenExpiryMs(token);
+  if (!expMs) {
+    // If we cannot read token expiry, consider the token invalid for safety.
+    return true;
+  }
+  return expMs <= Date.now();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const logoutTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    // Check for existing token on mount
-    const token = getToken();
-    const storedUser = localStorage.getItem('argus_user');
-    
-    if (token && storedUser) {
-      try {
-        // Check if JWT token is expired
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.exp && payload.exp * 1000 < Date.now()) {
-          // Token expired — clean up
-          removeToken();
-          localStorage.removeItem('argus_user');
-        } else {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch {
-        removeToken();
-        localStorage.removeItem('argus_user');
-      }
+  const clearLogoutTimer = useCallback(() => {
+    if (logoutTimeoutRef.current !== null) {
+      window.clearTimeout(logoutTimeoutRef.current);
+      logoutTimeoutRef.current = null;
     }
-    setIsLoading(false);
   }, []);
 
+  const clearAuthState = useCallback(() => {
+    removeToken();
+    localStorage.removeItem(AUTH_USER_KEY);
+    setUser(null);
+  }, []);
+
+  const scheduleExpiryLogout = useCallback(
+    (token: string) => {
+      clearLogoutTimer();
+
+      const expMs = getTokenExpiryMs(token);
+      if (!expMs) {
+        clearAuthState();
+        return;
+      }
+
+      const timeUntilExpiry = expMs - Date.now();
+      if (timeUntilExpiry <= 0) {
+        clearAuthState();
+        return;
+      }
+
+      logoutTimeoutRef.current = window.setTimeout(() => {
+        clearAuthState();
+      }, timeUntilExpiry);
+    },
+    [clearAuthState, clearLogoutTimer]
+  );
+
+  useEffect(() => {
+    // Restore session from storage if token is still valid.
+    const token = getToken();
+    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+
+    if (token && storedUser) {
+      try {
+        if (isTokenExpired(token)) {
+          clearAuthState();
+        } else {
+          setUser(JSON.parse(storedUser));
+          scheduleExpiryLogout(token);
+        }
+      } catch {
+        clearAuthState();
+      }
+    }
+
+    const handleUnauthorized = () => {
+      clearLogoutTimer();
+      clearAuthState();
+    };
+
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+
+    setIsLoading(false);
+    return () => {
+      window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+      clearLogoutTimer();
+    };
+  }, [clearAuthState, clearLogoutTimer, scheduleExpiryLogout]);
+
   const login = (token: string, userData: User) => {
+    clearLogoutTimer();
+
+    if (isTokenExpired(token)) {
+      clearAuthState();
+      return;
+    }
+
     setToken(token);
-    localStorage.setItem('argus_user', JSON.stringify(userData));
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
     setUser(userData);
+    scheduleExpiryLogout(token);
   };
 
   const logout = () => {
-    removeToken();
-    localStorage.removeItem('argus_user');
-    setUser(null);
+    clearLogoutTimer();
+    clearAuthState();
   };
 
   return (

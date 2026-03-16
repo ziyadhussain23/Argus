@@ -113,6 +113,11 @@ export async function apiRequest<T>(
   const data = await response.json();
 
   if (!response.ok) {
+    if (response.status === 401) {
+      removeToken();
+      localStorage.removeItem('argus_user');
+      window.dispatchEvent(new Event('argus:unauthorized'));
+    }
     throw new Error(data.message || 'API request failed');
   }
 
