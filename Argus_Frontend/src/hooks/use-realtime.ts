@@ -42,10 +42,12 @@ function getSharedClient(): Client {
       onDisconnect: () => {
         setSharedStatus('disconnected');
       },
-      onStompError: () => {
+      onStompError: (frame) => {
+        console.error('STOMP error:', frame.headers?.message || frame);
         setSharedStatus('disconnected');
       },
-      onWebSocketError: () => {
+      onWebSocketError: (event) => {
+        console.error('WebSocket error:', event);
         setSharedStatus('disconnected');
       },
     });
@@ -77,22 +79,27 @@ export function useRealtime(
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const wasConnectedRef = useRef(false);
+  const subsRef = useRef(subscriptions);
+  subsRef.current = subscriptions;
+
+  // Serialize topics so the effect only re-runs when the actual topic list changes
+  const topicsKey = subscriptions.map(s => s.topic).join('\0');
 
   useEffect(() => {
-    if (!enabled || subscriptions.length === 0) return;
+    if (!enabled || subsRef.current.length === 0) return;
 
     refCount++;
     const client = getSharedClient();
     let subs: StompSubscription[] = [];
 
     function doSubscribe() {
-      subs = subscriptions.map((sub) =>
+      subs = subsRef.current.map((sub) =>
         client.subscribe(sub.topic, (message: IMessage) => {
           try {
             const payload = JSON.parse(message.body);
             sub.onMessage(payload);
-          } catch {
-            // Ignore malformed payloads
+          } catch (err) {
+            console.error('Failed to parse WebSocket message:', err);
           }
         })
       );
@@ -106,21 +113,28 @@ export function useRealtime(
       doSubscribe();
     }
 
-    // Also subscribe on future (re)connects
-    const origOnConnect = client.onConnect;
-    client.onConnect = (frame) => {
-      origOnConnect?.(frame);
-      // Clean old subs before re-subscribing
+    const handleConnect = () => {
       subs.forEach((s) => { try { s.unsubscribe(); } catch {} });
       doSubscribe();
     };
 
-    // Track disconnections for this component
-    const origOnDisconnect = client.onDisconnect;
-    client.onDisconnect = (frame) => {
-      origOnDisconnect?.(frame);
+    const handleDisconnect = () => {
       setConnected(false);
       if (wasConnectedRef.current) setReconnecting(true);
+    };
+
+    if (!(client as any).__connectHandlers) (client as any).__connectHandlers = [];
+    if (!(client as any).__disconnectHandlers) (client as any).__disconnectHandlers = [];
+    (client as any).__connectHandlers.push(handleConnect);
+    (client as any).__disconnectHandlers.push(handleDisconnect);
+
+    client.onConnect = () => {
+      setSharedStatus('connected');
+      ((client as any).__connectHandlers || []).forEach((fn: () => void) => fn());
+    };
+    client.onDisconnect = () => {
+      setSharedStatus('disconnected');
+      ((client as any).__disconnectHandlers || []).forEach((fn: () => void) => fn());
     };
 
     return () => {
@@ -128,10 +142,15 @@ export function useRealtime(
       setConnected(false);
       setReconnecting(false);
       wasConnectedRef.current = false;
+      const ch = (client as any).__connectHandlers as Function[];
+      const dh = (client as any).__disconnectHandlers as Function[];
+      if (ch) { const idx = ch.indexOf(handleConnect); if (idx >= 0) ch.splice(idx, 1); }
+      if (dh) { const idx = dh.indexOf(handleDisconnect); if (idx >= 0) dh.splice(idx, 1); }
       refCount--;
-      // Don't kill the shared client — keep it alive for the status indicator
+      releaseSharedClient();
     };
-  }, [enabled, subscriptions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, topicsKey]);
 
   return { connected, reconnecting };
 }
