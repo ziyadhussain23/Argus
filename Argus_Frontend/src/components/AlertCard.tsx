@@ -14,16 +14,23 @@ interface AlertCardProps {
   isLoading?: boolean;
 }
 
+const severityStyles: Record<string, string> = {
+  INFO: 'border-l-primary',
+  WARNING: 'border-l-warning',
+  CRITICAL: 'border-l-critical',
+};
+
 export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertCardProps) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [ackNote, setAckNote] = useState('');
-  const triggeredTime = formatDistanceToNow(new Date(alert.triggeredAt), { addSuffix: true });
-
-  const severityStyles = {
-    INFO: 'border-l-primary',
-    WARNING: 'border-l-warning',
-    CRITICAL: 'border-l-critical',
-  };
+  let triggeredTime = 'Unknown';
+  try {
+    if (alert.triggeredAt) {
+      triggeredTime = formatDistanceToNow(new Date(alert.triggeredAt), { addSuffix: true });
+    }
+  } catch {
+    triggeredTime = 'Unknown';
+  }
 
   return (
     <div
@@ -85,8 +92,9 @@ export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertC
                   onChange={(e) => setAckNote(e.target.value)}
                   className="h-8 text-sm"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      onAcknowledge?.(alert.id, ackNote || undefined);
+                    if (e.key === 'Enter' && !isLoading) {
+                      const note = ackNote || undefined;
+                      onAcknowledge?.(alert.id, note);
                       setShowNoteInput(false);
                       setAckNote('');
                     }
