@@ -2,6 +2,16 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 
+/** Escape a value for CSV: quote it, double internal quotes, and neutralize formula injection */
+function csvSafe(value: string): string {
+  const escaped = value.replace(/"/g, '""');
+  // Prefix formula-triggering characters to prevent CSV injection in spreadsheets
+  if (/^[=+\-@\t\r]/.test(escaped)) {
+    return `"'${escaped}"`;
+  }
+  return `"${escaped}"`;
+}
+
 /**
  * Export chart element as an image (PNG or JPG)
  */
@@ -19,7 +29,7 @@ export const exportChartAsImage = async (
         });
 
         const link = document.createElement('a');
-        link.download = `${filename}.${format}`;
+        link.download = `${filename.replace(/[^a-zA-Z0-9_-]/g, '_')}.${format}`;
         link.href = canvas.toDataURL(`image/${format === 'jpg' ? 'jpeg' : 'png'}`, 0.95);
         link.click();
     } catch (error) {
@@ -73,11 +83,12 @@ export const exportChartAsPDF = async (
 
         // Add chart image
         const imgWidth = 180;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const imgHeight = Math.min((canvas.height * imgWidth) / canvas.width, 200);
         pdf.addImage(imgData, 'PNG', 15, 35, imgWidth, imgHeight);
 
         // Add statistics table
-        const tableY = 35 + imgHeight + 10;
+        let tableY = 35 + imgHeight + 10;
+        if (tableY > 260) { pdf.addPage(); tableY = 20; }
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
         pdf.text('Statistics', 15, tableY);
@@ -106,7 +117,7 @@ export const exportChartAsPDF = async (
         pdf.text(`Time Frame: ${metadata.timeFrame}`, 15, footerY + 5);
         pdf.text(`Server: ${metadata.serverSelection}`, 15, footerY + 10);
 
-        pdf.save(`${filename}.pdf`);
+        pdf.save(`${filename.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`);
     } catch (error) {
         console.error('Error exporting as PDF:', error);
         throw new Error('Failed to export as PDF');
@@ -162,7 +173,7 @@ export const exportDataAsExcel = (
         const dataSheet = XLSX.utils.aoa_to_sheet(dataForExcel);
         XLSX.utils.book_append_sheet(workbook, dataSheet, 'Data');
 
-        XLSX.writeFile(workbook, `${filename}.xlsx`);
+        XLSX.writeFile(workbook, `${filename.replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`);
     } catch (error) {
         console.error('Error exporting as Excel:', error);
         throw new Error('Failed to export as Excel');
@@ -193,14 +204,14 @@ export const exportDataAsCSV = (
             `# Time Frame: ${metadata.timeFrame}`,
             `# Server: ${metadata.serverSelection}`,
             '',
-            headers.join(','),
-            ...rows.map((row) => row.join(','))
+            headers.map(h => csvSafe(h)).join(','),
+            ...rows.map((row) => row.map(cell => csvSafe(cell)).join(','))
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `${filename}.csv`;
+        link.download = `${filename.replace(/[^a-zA-Z0-9_-]/g, '_')}.csv`;
         link.click();
         URL.revokeObjectURL(link.href);
     } catch (error) {
@@ -256,7 +267,7 @@ export const exportDataAsJSON = (
         });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `${filename}.json`;
+        link.download = `${filename.replace(/[^a-zA-Z0-9_-]/g, '_')}.json`;
         link.click();
         URL.revokeObjectURL(link.href);
     } catch (error) {
