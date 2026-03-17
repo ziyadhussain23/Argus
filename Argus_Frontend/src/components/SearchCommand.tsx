@@ -10,24 +10,17 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  Calculator,
-  Calendar,
-  CreditCard,
   Settings,
-  Smile,
-  User,
   LayoutDashboard,
   Server,
   AlertTriangle,
   Book,
   History,
-  Shield,
-  Home,
-  LogOut,
   Moon, 
-  Sun
+  Sun,
+  Activity
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export function SearchCommand() {
   const [open, setOpen] = useState(false);
@@ -52,7 +45,6 @@ export function SearchCommand() {
   };
 
   return (
-    <>
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput placeholder="Type a command or search..." />
         <CommandList>
@@ -77,20 +69,16 @@ export function SearchCommand() {
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </CommandItem>
-            <CommandItem onSelect={() => runCommand(() => navigate("/profile"))}>
-              <User className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </CommandItem>
             <CommandItem onSelect={() => runCommand(() => navigate("/status"))}>
-              <Calculator className="mr-2 h-4 w-4" />
+              <Activity className="mr-2 h-4 w-4" />
               <span>System Status</span>
             </CommandItem>
           </CommandGroup>
-           <CommandSeparator />
-           <CommandGroup heading="Resources">
-            <CommandItem onSelect={() => runCommand(() => navigate("/docs"))}>
+          <CommandSeparator />
+          <CommandGroup heading="Resources">
+            <CommandItem onSelect={() => runCommand(() => navigate("/help"))}>
               <Book className="mr-2 h-4 w-4" />
-              <span>Documentation</span>
+              <span>Help & Support</span>
             </CommandItem>
             <CommandItem onSelect={() => runCommand(() => navigate("/history"))}>
               <History className="mr-2 h-4 w-4" />
@@ -110,6 +98,5 @@ export function SearchCommand() {
           </CommandGroup>
         </CommandList>
       </CommandDialog>
-    </>
   );
 }
