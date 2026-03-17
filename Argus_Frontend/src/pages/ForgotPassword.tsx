@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -13,19 +13,28 @@ export default function ForgotPassword() {
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const timer = setTimeout(() => setCooldown(c => c - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [cooldown]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (cooldown > 0) return;
         setIsLoading(true);
 
         try {
             const response = await authApi.forgotPassword(email);
             if (response.success) {
                 setIsSubmitted(true);
+                setCooldown(60);
                 toast({
                     title: 'Email sent',
-                    description: 'Check your inbox for password reset instructions.',
+                    description: 'If an account exists with that email, you will receive reset instructions.',
                 });
             }
         } catch (error) {
@@ -102,14 +111,15 @@ export default function ForgotPassword() {
                                 <Mail className="h-6 w-6 text-success" />
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                We sent a password reset link to <span className="font-medium text-foreground">{email}</span>. Please check your email.
+                                If an account exists with that email, we've sent a password reset link. Please check your inbox and spam folder.
                             </p>
                             <Button
                                 variant="outline"
                                 className="w-full"
-                                onClick={() => setIsSubmitted(false)}
+                                onClick={() => { setIsSubmitted(false); }}
+                                disabled={cooldown > 0}
                             >
-                                Try another email
+                                {cooldown > 0 ? `Try again in ${cooldown}s` : 'Try another email'}
                             </Button>
                         </div>
                     )}
