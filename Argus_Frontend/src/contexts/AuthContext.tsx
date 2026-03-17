@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { User, getToken, setToken, removeToken } from '@/lib/api';
 
 interface AuthContextType {
@@ -50,11 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const logoutTimeoutRef = useRef<number | null>(null);
+  const warningTimeoutRef = useRef<number | null>(null);
 
   const clearLogoutTimer = useCallback(() => {
     if (logoutTimeoutRef.current !== null) {
       window.clearTimeout(logoutTimeoutRef.current);
       logoutTimeoutRef.current = null;
+    }
+    if (warningTimeoutRef.current !== null) {
+      window.clearTimeout(warningTimeoutRef.current);
+      warningTimeoutRef.current = null;
     }
   }, []);
 
@@ -80,7 +85,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Show warning 60 seconds before expiry
+      const warningTime = timeUntilExpiry - 60000;
+      if (warningTime > 0) {
+        warningTimeoutRef.current = window.setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('argus:session-expiring'));
+        }, warningTime);
+      }
+
       logoutTimeoutRef.current = window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('argus:session-expired'));
         clearAuthState();
       }, timeUntilExpiry);
     },
@@ -112,14 +126,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
 
+    // Sync auth state across browser tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'argus_token') { // matches key used in api.ts getToken/setToken/removeToken
+        if (!e.newValue) {
+          // Token was removed in another tab — log out here too
+          clearLogoutTimer();
+          setUser(null);
+        }
+      }
+      if (e.key === AUTH_USER_KEY) {
+        if (e.newValue) {
+          try { setUser(JSON.parse(e.newValue)); } catch { /* ignore */ }
+        } else {
+          setUser(null);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     setIsLoading(false);
     return () => {
       window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+      window.removeEventListener('storage', handleStorageChange);
       clearLogoutTimer();
     };
   }, [clearAuthState, clearLogoutTimer, scheduleExpiryLogout]);
 
-  const login = (token: string, userData: User) => {
+  const login = useCallback((token: string, userData: User) => {
     clearLogoutTimer();
 
     if (isTokenExpired(token)) {
@@ -131,12 +165,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
     setUser(userData);
     scheduleExpiryLogout(token);
-  };
+  }, [clearLogoutTimer, clearAuthState, scheduleExpiryLogout]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearLogoutTimer();
     clearAuthState();
-  };
+  }, [clearLogoutTimer, clearAuthState]);
 
   return (
     <AuthContext.Provider
