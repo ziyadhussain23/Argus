@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,14 @@ export default function VerifyEmail() {
   const [status, setStatus] = useState<VerificationStatus>('verifying');
   const [message, setMessage] = useState('Verifying your email address...');
   const token = searchParams.get('token');
+  const hasVerified = useRef(false);
 
   useEffect(() => {
+    if (hasVerified.current) return;
+    hasVerified.current = true;
+
+    let redirectTimer: ReturnType<typeof setTimeout>;
+
     const verifyEmail = async () => {
       if (!token) {
         setStatus('error');
@@ -28,18 +34,19 @@ export default function VerifyEmail() {
         const response = await authApi.verifyEmail(token);
         setStatus('success');
         setMessage(response.message || 'Email verified successfully! Welcome to Argus!');
-        
+
         // Redirect to login after 3 seconds
-        setTimeout(() => {
+        redirectTimer = setTimeout(() => {
           navigate('/login');
         }, 3000);
-      } catch (error: any) {
+      } catch (error: unknown) {
         setStatus('error');
-        setMessage(error.message || 'Failed to verify email. The link may be invalid or expired.');
+        setMessage(error instanceof Error ? error.message : 'Failed to verify email. The link may be invalid or expired.');
       }
     };
 
     verifyEmail();
+    return () => clearTimeout(redirectTimer);
   }, [token, navigate]);
 
   return (
@@ -84,12 +91,12 @@ export default function VerifyEmail() {
             )}
             {status === 'error' && (
               <div className="space-y-3">
-                <Button 
-                  onClick={() => navigate('/email-sent')} 
+                <Button
+                  onClick={() => navigate('/register')}
                   className="w-full"
                   variant="outline"
                 >
-                  Resend Verification Email
+                  Back to Registration
                 </Button>
                 <Button 
                   onClick={() => navigate('/login')} 
