@@ -1,5 +1,5 @@
 // Argus Frontend - Main Application Entry Point
-import { lazy, Suspense } from "react";
+import React, { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +7,43 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
+
+// Error Boundary for catching render errors in protected routes
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('ErrorBoundary caught:', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+          <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
+          <p className="text-muted-foreground">An unexpected error occurred. Please try refreshing the page.</p>
+          <button
+            onClick={() => { this.setState({ hasError: false }); window.location.href = '/dashboard'; }}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Lazy-loaded page components for code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -33,6 +70,9 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Documentation = lazy(() => import("./pages/Documentation"));
 const Status = lazy(() => import("./pages/Status"));
+const EditServer = lazy(() => import("./pages/EditServer"));
+const ScheduledReports = lazy(() => import("./pages/ScheduledReports"));
+const BulkImport = lazy(() => import("./pages/BulkImport"));
 const GettingStarted = lazy(() => import("./pages/docs/GettingStarted"));
 const CoreFeatures = lazy(() => import("./pages/docs/CoreFeatures"));
 const APIReference = lazy(() => import("./pages/docs/APIReference"));
@@ -85,118 +125,142 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
-    <Route path="/" element={<Index />} />
-    <Route
-      path="/login"
-      element={
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      }
-    />
-    <Route
-      path="/register"
-      element={
-        <PublicRoute>
-          <Register />
-        </PublicRoute>
-      }
-    />
-    <Route path="/verify-email" element={<VerifyEmail />} />
-    <Route path="/email-sent" element={<EmailVerificationSent />} />
-    <Route
-      path="/forgot-password"
-      element={
-        <PublicRoute>
-          <ForgotPassword />
-        </PublicRoute>
-      }
-    />
-    <Route
-      path="/reset-password"
-      element={
-        <PublicRoute>
-          <ResetPassword />
-        </PublicRoute>
-      }
-    />
-    <Route
-      path="/dashboard"
-      element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/servers"
-      element={
-        <ProtectedRoute>
-          <Servers />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/servers/new"
-      element={
-        <ProtectedRoute>
-          <AddServer />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/servers/:id"
-      element={
-        <ProtectedRoute>
-          <ServerDetail />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/alerts"
-      element={
-        <ProtectedRoute>
-          <Alerts />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/rules"
-      element={
-        <ProtectedRoute>
-          <AlertRules />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/history"
-      element={
-        <ProtectedRoute>
-          <History />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/settings"
-      element={
-        <ProtectedRoute>
-          <Settings />
-        </ProtectedRoute>
-      }
-    />
-    <Route path="/about" element={<About />} />
-    <Route path="/faq" element={<FAQ />} />
-    <Route path="/help" element={<HelpSupport />} />
-    <Route path="/docs" element={<Documentation />} />
-    <Route path="/docs/getting-started" element={<GettingStarted />} />
-    <Route path="/docs/features" element={<CoreFeatures />} />
-    <Route path="/docs/api" element={<APIReference />} />
-    <Route path="/docs/security" element={<SecurityCompliance />} />
-    <Route path="/status" element={<Status />} />
-    <Route path="/privacy" element={<Privacy />} />
-    <Route path="/terms" element={<Terms />} />
-    <Route path="/cookies" element={<Cookies />} />
-    <Route path="*" element={<NotFound />} />
+      <Route path="/" element={<Index />} />
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <Register />
+          </PublicRoute>
+        }
+      />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/email-sent" element={<EmailVerificationSent />} />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPassword />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <PublicRoute>
+            <ResetPassword />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servers"
+        element={
+          <ProtectedRoute>
+            <Servers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servers/new"
+        element={
+          <ProtectedRoute>
+            <AddServer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servers/:id"
+        element={
+          <ProtectedRoute>
+            <ServerDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servers/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditServer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servers/import"
+        element={
+          <ProtectedRoute>
+            <BulkImport />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/alerts"
+        element={
+          <ProtectedRoute>
+            <Alerts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rules"
+        element={
+          <ProtectedRoute>
+            <AlertRules />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <History />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute>
+            <ScheduledReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/about" element={<About />} />
+      <Route path="/faq" element={<FAQ />} />
+      <Route path="/help" element={<HelpSupport />} />
+      <Route path="/docs" element={<Documentation />} />
+      <Route path="/docs/getting-started" element={<GettingStarted />} />
+      <Route path="/docs/features" element={<CoreFeatures />} />
+      <Route path="/docs/api" element={<APIReference />} />
+      <Route path="/docs/security" element={<SecurityCompliance />} />
+      <Route path="/status" element={<Status />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/cookies" element={<Cookies />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>
 );
@@ -209,7 +273,9 @@ const App = () => (
         <Toaster />
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
