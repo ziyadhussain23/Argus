@@ -42,12 +42,16 @@ export default function Settings() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(() => {
-    const saved = localStorage.getItem('argus_email_notifications');
-    return saved !== null ? JSON.parse(saved) : true;
+    try {
+      const saved = localStorage.getItem('argus_email_notifications');
+      return saved !== null ? JSON.parse(saved) === true : true;
+    } catch { return true; }
   });
   const [criticalOnly, setCriticalOnly] = useState(() => {
-    const saved = localStorage.getItem('argus_critical_only');
-    return saved !== null ? JSON.parse(saved) : false;
+    try {
+      const saved = localStorage.getItem('argus_critical_only');
+      return saved !== null ? JSON.parse(saved) === true : false;
+    } catch { return false; }
   });
   const { toast } = useToast();
   const { user, logout } = useAuth();
@@ -61,8 +65,8 @@ export default function Settings() {
       toast({ title: 'Please fill in all password fields', variant: 'destructive' });
       return;
     }
-    if (newPassword.length < 8) {
-      toast({ title: 'New password must be at least 8 characters', variant: 'destructive' });
+    if (newPassword.length < 8 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      toast({ title: 'Password must be 8+ chars with uppercase, lowercase, number, and special character', variant: 'destructive' });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -94,9 +98,20 @@ export default function Settings() {
   };
 
   const handleSaveApiUrl = () => {
+    const trimmed = apiUrl.trim();
+    try {
+      const parsed = new URL(trimmed);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        toast({ title: 'Invalid URL', description: 'Only HTTP/HTTPS URLs are allowed.', variant: 'destructive' });
+        return;
+      }
+    } catch {
+      toast({ title: 'Invalid URL format', variant: 'destructive' });
+      return;
+    }
     setIsSaving(true);
     try {
-      setApiBaseUrl(apiUrl);
+      setApiBaseUrl(trimmed);
       toast({
         title: 'Settings saved',
         description: 'API URL has been updated.',
@@ -107,23 +122,25 @@ export default function Settings() {
   };
 
   const handleTestConnection = async () => {
+    if (isTesting) return;
     setIsTesting(true);
     setTestSuccess(null);
 
     try {
+      const token = localStorage.getItem('argus_token');
       const response = await fetch(`${apiUrl}/servers`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-      
+
       if (response.ok || response.status === 401) {
-        // 401 is okay - it means the server is responding, just needs auth
         setTestSuccess(true);
         toast({
           title: 'Connection successful',
-          description: 'The API server is responding.',
+          description: response.ok ? 'The API server is responding.' : 'Server reached, but authentication required.',
         });
       } else {
         throw new Error('Server not responding');
@@ -271,6 +288,7 @@ export default function Settings() {
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  aria-label={showCurrentPassword ? 'Hide current password' : 'Show current password'}
                 >
                   {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -291,6 +309,7 @@ export default function Settings() {
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
                 >
                   {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -415,7 +434,7 @@ export default function Settings() {
           <h2 className="font-display text-lg font-semibold text-foreground mb-4">
             About Argus
           </h2>
-          <div className="prose prose-sm prose-invert max-w-none">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
             <p className="text-muted-foreground">
               Argus is a real-time server monitoring and alerting system that uses lightweight 
               agents deployed on client servers to collect metrics and send them to a central 
