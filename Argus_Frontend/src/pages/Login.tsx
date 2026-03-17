@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/lib/api';
@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Activity, Eye, EyeOff, Loader2, Server, Bell, Shield, Zap,
-  CheckCircle2, Star, ChevronRight, Cpu, HardDrive, Wifi, BarChart3,
-  Github, Mail, Lock, AlertCircle
+  CheckCircle2, ChevronRight, Cpu, HardDrive, Wifi, BarChart3,
+  Mail, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -22,26 +22,7 @@ const features = [
   { icon: Shield, text: 'Enterprise security' },
 ];
 
-const testimonials = [
-  {
-    quote: "Argus has completely transformed how we monitor our infrastructure.",
-    author: "Sarah Chen",
-    role: "DevOps Lead at TechCorp",
-    rating: 5
-  },
-  {
-    quote: "The best monitoring solution we've ever used. Couldn't recommend it more!",
-    author: "Michael Roberts",
-    role: "CTO at StartupXYZ",
-    rating: 5
-  },
-  {
-    quote: "Simple to set up, powerful features, and excellent support.",
-    author: "Emily Watson",
-    role: "System Admin at DataFlow",
-    rating: 5
-  },
-];
+
 
 const metrics = [
   { icon: Cpu, label: 'CPU', value: '23%', color: 'text-emerald-500' },
@@ -58,20 +39,26 @@ export default function Login() {
   const [isResending, setIsResending] = useState(false);
   const [showVerificationError, setShowVerificationError] = useState(false);
   const [userEmail, setUserEmail] = useState('');
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [usernameError, setUsernameError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const validateUsername = (value: string) => {
+    if (!value.trim()) return 'Username is required';
+    if (value.length < 3) return 'Username must be at least 3 characters';
+    if (value.length > 50) return 'Username must be 50 characters or fewer';
+    if (!/^[a-zA-Z0-9_.-]+$/.test(value)) return 'Username can only contain letters, numbers, underscores, dots, and hyphens';
+    return '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const uError = validateUsername(username);
+    setUsernameError(uError);
+    if (uError) return;
+
     setIsLoading(true);
     setShowVerificationError(false);
 
@@ -92,20 +79,10 @@ export default function Login() {
       if (errorMessage.toLowerCase().includes('email not verified') || 
           errorMessage.toLowerCase().includes('verify your email')) {
         setShowVerificationError(true);
-        // Fetch user's email by username
-        try {
-          const emailResponse = await authApi.getUserEmail(username);
-          if (emailResponse.success && emailResponse.data) {
-            setUserEmail(emailResponse.data);
-          }
-        } catch (e) {
-          // If we can't get email, user will need to enter it manually
-          console.error('Failed to fetch user email:', e);
-        }
       } else {
         toast({
           title: 'Login failed',
-          description: errorMessage,
+          description: 'Invalid username or password.',
           variant: 'destructive',
         });
       }
@@ -147,6 +124,20 @@ export default function Login() {
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
+      {/* Back button */}
+      <div className="fixed top-5 left-5 z-50">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/')}
+          aria-label="Go back to home"
+          className="rounded-full bg-background/90 backdrop-blur-md shadow-md gap-2 px-4"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back</span>
+        </Button>
+      </div>
+
       {/* Theme toggle */}
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
@@ -162,12 +153,14 @@ export default function Login() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Link to="/" className="flex items-center gap-3 mb-8">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
-                <Activity className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl font-bold">Argus</span>
-            </Link>
+            <div className="flex items-center gap-3 mb-8">
+              <Link to="/" className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
+                  <Activity className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <span className="font-display text-2xl font-bold">Argus</span>
+              </Link>
+            </div>
 
             <h1 className="font-display text-3xl font-bold text-foreground">
               Welcome back
@@ -225,10 +218,13 @@ export default function Login() {
                   type="text"
                   placeholder="Enter your username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => { setUsername(e.target.value); if (usernameError) setUsernameError(validateUsername(e.target.value)); }}
                   required
-                  className="h-12"
+                  minLength={3}
+                  maxLength={50}
+                  className={`h-12 ${usernameError ? 'border-destructive' : ''}`}
                 />
+                {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
               </div>
 
               <div className="space-y-2">
@@ -257,6 +253,7 @@ export default function Login() {
                     size="icon"
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -405,43 +402,7 @@ export default function Login() {
               ))}
             </motion.div>
 
-            {/* Testimonial */}
-            <motion.div
-              className="mt-8 p-6 rounded-xl bg-card/80 backdrop-blur-sm border border-border"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-            >
-              <div className="flex justify-center mb-3">
-                {[...Array(testimonials[activeTestimonial].rating)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 text-amber-400 fill-amber-400" />
-                ))}
-              </div>
-              <motion.p
-                key={activeTestimonial}
-                className="text-sm text-foreground mb-3 italic"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                "{testimonials[activeTestimonial].quote}"
-              </motion.p>
-              <div className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{testimonials[activeTestimonial].author}</span>
-                {' · '}
-                {testimonials[activeTestimonial].role}
-              </div>
-              <div className="flex justify-center gap-1.5 mt-4">
-                {testimonials.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveTestimonial(i)}
-                    className={`w-2 h-2 rounded-full transition-all ${i === activeTestimonial ? 'bg-primary w-4' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                      }`}
-                  />
-                ))}
-              </div>
-            </motion.div>
+
 
             {/* Trust Badge */}
             <motion.div
