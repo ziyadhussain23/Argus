@@ -10,7 +10,7 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md';
 }
 
-const statusStyles: Record<string, string> = {
+const statusStyles: Record<Status | Severity | AlertStatus, string> = {
   ONLINE: 'bg-green-500/10 text-green-500 border-green-500/30',
   OFFLINE: 'bg-red-500/10 text-red-500 border-red-500/30',
   WARNING: 'bg-warning/10 text-warning border-warning/30',
@@ -22,7 +22,7 @@ const statusStyles: Record<string, string> = {
   RESOLVED: 'bg-success/10 text-success border-success/30',
 };
 
-const dotStyles: Record<string, string> = {
+const dotStyles: Record<Status | Severity | AlertStatus, string> = {
   ONLINE: 'status-online',
   OFFLINE: 'status-offline',
   WARNING: 'status-warning',
@@ -32,6 +32,18 @@ const dotStyles: Record<string, string> = {
   ACTIVE: 'status-critical',
   ACKNOWLEDGED: 'status-warning',
   RESOLVED: 'status-online',
+};
+
+const statusLabels: Record<Status | Severity | AlertStatus, string> = {
+  ONLINE: 'Online',
+  OFFLINE: 'Offline',
+  WARNING: 'Warning',
+  CRITICAL: 'Critical',
+  UNKNOWN: 'Unknown',
+  INFO: 'Info',
+  ACTIVE: 'Active',
+  ACKNOWLEDGED: 'Acknowledged',
+  RESOLVED: 'Resolved',
 };
 
 export function StatusBadge({ status, showDot = true, size = 'md' }: StatusBadgeProps) {
@@ -46,7 +58,7 @@ export function StatusBadge({ status, showDot = true, size = 'md' }: StatusBadge
       {showDot && (
         <span className={cn('status-indicator', dotStyles[status])} />
       )}
-      {status}
+      {statusLabels[status] || status}
     </span>
   );
 }
