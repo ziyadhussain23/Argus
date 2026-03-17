@@ -24,18 +24,19 @@ import {
   Loader2,
   MoreVertical,
   History,
-  Layout,
-  Cpu,
   Book,
   Code,
-  LifeBuoy
+  ArrowUp,
+  ArrowDown,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { serversApi, alertsApi, alertRulesApi, Server as ServerType, Alert, AlertRule, Metric } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRealtime } from '@/hooks/use-realtime';
 import {
-  LineChart, Line, AreaChart, Area,
+  AreaChart, Area,
   ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip,
 } from 'recharts';
 import { motion } from 'framer-motion';
@@ -79,6 +80,32 @@ export default function Dashboard() {
       try { return JSON.parse(stored); } catch { /* ignore */ }
     }
     return { servers: true, alerts: true, rules: true, history: true, resources: true };
+  });
+
+  // Section order — persisted to localStorage
+  type SectionKey = keyof VisibleSections;
+  const DEFAULT_ORDER: SectionKey[] = ['servers', 'alerts', 'history', 'rules', 'resources'];
+  const [sectionOrder, setSectionOrder] = useState<SectionKey[]>(() => {
+    const stored = localStorage.getItem('argus_dashboard_order');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length === DEFAULT_ORDER.length) return parsed;
+      } catch { /* ignore */ }
+    }
+    return DEFAULT_ORDER;
+  });
+
+  // Section sizes — 'half' (1 col) or 'full' (2 cols) — persisted to localStorage
+  type SectionSize = 'half' | 'full';
+  type SectionSizes = Record<SectionKey, SectionSize>;
+  const DEFAULT_SIZES: SectionSizes = { servers: 'half', alerts: 'half', history: 'half', rules: 'half', resources: 'full' };
+  const [sectionSizes, setSectionSizes] = useState<SectionSizes>(() => {
+    const stored = localStorage.getItem('argus_dashboard_sizes');
+    if (stored) {
+      try { return { ...DEFAULT_SIZES, ...JSON.parse(stored) }; } catch { /* ignore */ }
+    }
+    return DEFAULT_SIZES;
   });
 
   const { toast } = useToast();
@@ -226,7 +253,7 @@ export default function Dashboard() {
   const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
       await alertsApi.acknowledge(alertId);
-      setAlerts(alerts.map(a =>
+      setAlerts(prev => prev.map(a =>
         a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' as const } : a
       ));
       toast({ title: 'Alert acknowledged' });
@@ -238,7 +265,7 @@ export default function Dashboard() {
   const handleResolve = async (alertId: number) => {
     try {
       await alertsApi.resolve(alertId);
-      setAlerts(alerts.filter(a => a.id !== alertId));
+      setAlerts(prev => prev.filter(a => a.id !== alertId));
       toast({ title: 'Alert resolved' });
     } catch (error) {
       toast({ title: 'Failed to resolve alert', variant: 'destructive' });
@@ -251,6 +278,44 @@ export default function Dashboard() {
       localStorage.setItem('argus_dashboard_sections', JSON.stringify(next));
       return next;
     });
+  };
+
+  const moveSectionUp = (section: SectionKey) => {
+    setSectionOrder(prev => {
+      const idx = prev.indexOf(section);
+      if (idx <= 0) return prev;
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      localStorage.setItem('argus_dashboard_order', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const moveSectionDown = (section: SectionKey) => {
+    setSectionOrder(prev => {
+      const idx = prev.indexOf(section);
+      if (idx < 0 || idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      localStorage.setItem('argus_dashboard_order', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const toggleSectionSize = (section: SectionKey) => {
+    setSectionSizes(prev => {
+      const next = { ...prev, [section]: prev[section] === 'full' ? 'half' : 'full' };
+      localStorage.setItem('argus_dashboard_sizes', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const SECTION_LABELS: Record<SectionKey, string> = {
+    servers: 'Servers',
+    alerts: 'Active Alerts',
+    rules: 'Alert Rules',
+    history: 'System History',
+    resources: 'Resources',
   };
 
   const prevStatsRef = useRef<typeof stats | null>(null);
@@ -359,48 +424,33 @@ export default function Dashboard() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" aria-label="Customize dashboard">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-64">
                 <DropdownMenuLabel>Customize Dashboard</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={visibleSections.servers}
-                  onCheckedChange={() => toggleSection('servers')}
-                >
-                  <Server className="mr-2 h-4 w-4" />
-                  Servers
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={visibleSections.alerts}
-                  onCheckedChange={() => toggleSection('alerts')}
-                >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  Active Alerts
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={visibleSections.rules}
-                  onCheckedChange={() => toggleSection('rules')}
-                >
-                  <Shield className="mr-2 h-4 w-4" />
-                  Alert Rules
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={visibleSections.history}
-                  onCheckedChange={() => toggleSection('history')}
-                >
-                  <History className="mr-2 h-4 w-4" />
-                  System History
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={visibleSections.resources}
-                  onCheckedChange={() => toggleSection('resources')}
-                >
-                  <Book className="mr-2 h-4 w-4" />
-                  Resources
-                </DropdownMenuCheckboxItem>
+                {sectionOrder.map((section, idx) => (
+                  <div key={section} className="flex items-center gap-1 px-2 py-1">
+                    <DropdownMenuCheckboxItem
+                      checked={visibleSections[section]}
+                      onCheckedChange={() => toggleSection(section)}
+                      className="flex-1"
+                    >
+                      {SECTION_LABELS[section]}
+                    </DropdownMenuCheckboxItem>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" title={sectionSizes[section] === 'full' ? 'Half width' : 'Full width'} onClick={() => toggleSectionSize(section)} aria-label={sectionSizes[section] === 'full' ? 'Set half width' : 'Set full width'}>
+                      {sectionSizes[section] === 'full' ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" disabled={idx === 0} onClick={() => moveSectionUp(section)} aria-label="Move section up">
+                      <ArrowUp className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" disabled={idx === sectionOrder.length - 1} onClick={() => moveSectionDown(section)} aria-label="Move section down">
+                      <ArrowDown className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -447,218 +497,139 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Servers Section */}
-          {visibleSections.servers && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-semibold text-foreground">Servers</h2>
-                <Link to="/servers" className="text-sm text-primary hover:underline flex items-center gap-1">
-                  View all <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
+          {sectionOrder.filter(s => s !== 'resources' && visibleSections[s]).map((section, idx) => {
+            const isFullWidth = sectionSizes[section] === 'full';
+            const colSpan = isFullWidth ? 'lg:col-span-2' : '';
 
-              {servers.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                  <Server className="mx-auto h-10 w-10 text-muted-foreground" />
-                  <h3 className="mt-4 font-medium text-foreground">No servers yet</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Add your first server to start monitoring
-                  </p>
-                  <Link to="/servers/new">
-                    <Button className="mt-4" size="sm">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Server
-                    </Button>
+            if (section === 'servers') return (
+              <motion.div key="servers" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.1 }} className={`space-y-4 ${colSpan}`}>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-xl font-semibold text-foreground">Servers</h2>
+                  <Link to="/servers" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    View all <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {servers.slice(0, 4).map((server) => (
-                    <ServerCard key={server.id} server={server} />
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
+                {servers.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                    <Server className="mx-auto h-10 w-10 text-muted-foreground" />
+                    <h3 className="mt-4 font-medium text-foreground">No servers yet</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Add your first server to start monitoring</p>
+                    <Link to="/servers/new"><Button className="mt-4" size="sm"><Plus className="mr-2 h-4 w-4" />Add Server</Button></Link>
+                  </div>
+                ) : (
+                  <div className="space-y-3">{servers.slice(0, 4).map((server) => <ServerCard key={server.id} server={server} />)}</div>
+                )}
+              </motion.div>
+            );
 
-          {/* Alerts Section */}
-          {visibleSections.alerts && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-semibold text-foreground">Active Alerts</h2>
-                <Link to="/alerts" className="text-sm text-primary hover:underline flex items-center gap-1">
-                  View all <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-
-              {alerts.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                  <Shield className="mx-auto h-10 w-10 text-success" />
-                  <h3 className="mt-4 font-medium text-foreground">All clear!</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    No active alerts at the moment
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {alerts.slice(0, 3).map((alert) => (
-                    <AlertCard
-                      key={alert.id}
-                      alert={alert}
-                      onAcknowledge={handleAcknowledge}
-                      onResolve={handleResolve}
-                    />
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Recent History Widget */}
-          {visibleSections.history && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-semibold text-foreground">System History</h2>
-                <div className="flex items-center gap-4">
-                  <Select value={timeRange} onValueChange={setTimeRange}>
-                    <SelectTrigger className="w-[120px] h-8 text-xs">
-                      <SelectValue placeholder="Range" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1h">Last Hour</SelectItem>
-                      <SelectItem value="6h">Last 6 Hours</SelectItem>
-                      <SelectItem value="24h">Last 24 Hours</SelectItem>
-                      <SelectItem value="7d">Last 7 Days</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Link to="/history" className="text-sm text-primary hover:underline flex items-center gap-1">
-                    Full History <ArrowRight className="h-3 w-3" />
+            if (section === 'alerts') return (
+              <motion.div key="alerts" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.1 }} className={`space-y-4 ${colSpan}`}>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-xl font-semibold text-foreground">Active Alerts</h2>
+                  <Link to="/alerts" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    View all <ArrowRight className="h-3 w-3" />
                   </Link>
                 </div>
-              </div>
+                {alerts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                    <Shield className="mx-auto h-10 w-10 text-success" />
+                    <h3 className="mt-4 font-medium text-foreground">All clear!</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">No active alerts at the moment</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">{alerts.slice(0, 3).map((alert) => <AlertCard key={alert.id} alert={alert} onAcknowledge={handleAcknowledge} onResolve={handleResolve} />)}</div>
+                )}
+              </motion.div>
+            );
 
-              <div className="rounded-xl border border-border bg-card p-4">
-                <div className="h-56">
-                  {historyData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={historyData}>
-                        <defs>
-                          <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                        <XAxis
-                          dataKey="time"
-                          stroke="hsl(var(--muted-foreground))"
-                          fontSize={11}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <YAxis
-                          stroke="hsl(var(--muted-foreground))"
-                          fontSize={11}
-                          tickLine={false}
-                          axisLine={false}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            borderColor: 'hsl(var(--border))',
-                            borderRadius: '8px'
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="value"
-                          stroke="hsl(var(--primary))"
-                          fillOpacity={1}
-                          fill="url(#colorValue)"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-                      <div className="flex flex-col items-center gap-2">
-                        <Activity className="h-8 w-8 opacity-50" />
-                        <p>No history data available</p>
-                      </div>
-                    </div>
-                  )}
+            if (section === 'history') return (
+              <motion.div key="history" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + idx * 0.1 }} className={`space-y-4 ${colSpan}`}>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-xl font-semibold text-foreground">System History</h2>
+                  <div className="flex items-center gap-4">
+                    <Select value={timeRange} onValueChange={setTimeRange}>
+                      <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Range" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1h">Last Hour</SelectItem>
+                        <SelectItem value="6h">Last 6 Hours</SelectItem>
+                        <SelectItem value="24h">Last 24 Hours</SelectItem>
+                        <SelectItem value="7d">Last 7 Days</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Link to="/history" className="text-sm text-primary hover:underline flex items-center gap-1">
+                      Full History <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Alert Rules Widget */}
-          {visibleSections.rules && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-semibold text-foreground">Alert Rules</h2>
-                <Link to="/rules" className="text-sm text-primary hover:underline flex items-center gap-1">
-                  Manage Rules <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-
-              {rules.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                  <Shield className="mx-auto h-10 w-10 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    No alert rules configured
-                  </p>
-                  <Link to="/rules">
-                    <Button variant="link" size="sm" className="mt-2 text-primary">
-                      Configure Rules
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {rules.map((rule) => (
-                    <div key={rule.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{rule.name}</span>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className={`px-1.5 py-0.5 rounded ${rule.isEnabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                            }`}>
-                            {rule.isEnabled ? 'Active' : 'Disabled'}
-                          </span>
-                          <span>•</span>
-                          <span>{rule.metricType}</span>
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="h-56">
+                    {historyData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={historyData}>
+                          <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickLine={false} axisLine={false} />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
+                          <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorValue)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+                        <div className="flex flex-col items-center gap-2">
+                          <Activity className="h-8 w-8 opacity-50" />
+                          <p>No history data available</p>
                         </div>
                       </div>
-                      <Link to="/rules">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
-              )}
-            </motion.div>
-          )}
+              </motion.div>
+            );
+
+            if (section === 'rules') return (
+              <motion.div key="rules" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + idx * 0.1 }} className={`space-y-4 ${colSpan}`}>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-xl font-semibold text-foreground">Alert Rules</h2>
+                  <Link to="/rules" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    Manage Rules <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+                {rules.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                    <Shield className="mx-auto h-10 w-10 text-muted-foreground" />
+                    <p className="mt-4 text-sm text-muted-foreground">No alert rules configured</p>
+                    <Link to="/rules"><Button variant="link" size="sm" className="mt-2 text-primary">Configure Rules</Button></Link>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {rules.map((rule) => (
+                      <div key={rule.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{rule.name}</span>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className={`px-1.5 py-0.5 rounded ${rule.isEnabled ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}`}>
+                              {rule.isEnabled ? 'Active' : 'Disabled'}
+                            </span>
+                            <span>•</span>
+                            <span>{rule.metricType}</span>
+                          </div>
+                        </div>
+                        <Link to="/rules"><Button variant="ghost" size="icon" className="h-8 w-8" aria-label="View all alert rules"><ArrowRight className="h-4 w-4" /></Button></Link>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            );
+
+            return null;
+          })}
         </div>
 
         {/* Quick Actions / Resources */}
@@ -667,9 +638,9 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="grid gap-6 md:grid-cols-3"
+            className={sectionSizes.resources === 'full' ? 'grid gap-6 md:grid-cols-3' : 'grid gap-6 md:grid-cols-2'}
           >
-            <Link to="/docs/getting-started" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
+            <Link to="/help" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
                   <Book className="h-5 w-5" />
@@ -684,7 +655,7 @@ export default function Dashboard() {
               </div>
             </Link>
 
-            <Link to="/docs/api" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
+            <Link to="/help" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
                   <Code className="h-5 w-5" />
@@ -699,7 +670,7 @@ export default function Dashboard() {
               </div>
             </Link>
 
-            <Link to="/docs/security" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
+            <Link to="/help" className="group rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-all">
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10 text-red-500">
                   <Shield className="h-5 w-5" />
