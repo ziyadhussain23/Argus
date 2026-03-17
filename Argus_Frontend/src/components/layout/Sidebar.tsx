@@ -13,13 +13,15 @@ import {
   ArrowLeft,
   History,
   Wifi,
-  WifiOff
+  WifiOff,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useWebSocketStatus } from '@/hooks/use-realtime';
+import { useToast } from '@/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -33,6 +35,7 @@ const navItems = [
   { icon: Bell, label: 'Alerts', path: '/alerts' },
   { icon: AlertTriangle, label: 'Alert Rules', path: '/rules' },
   { icon: History, label: 'History', path: '/history' },
+  { icon: FileText, label: 'Reports', path: '/reports' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
@@ -52,6 +55,7 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const wsStatus = useWebSocketStatus();
+  const { toast } = useToast();
 
   const handleBack = () => {
     navigate(-1);
@@ -86,6 +90,8 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
                 <div className="flex items-center">
                   {wsStatus === 'connected' ? (
                     <Wifi className="h-3.5 w-3.5 text-green-500" />
+                  ) : wsStatus === 'connecting' ? (
+                    <Wifi className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
                   ) : (
                     <WifiOff className="h-3.5 w-3.5 text-red-500" />
                   )}
@@ -119,12 +125,13 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path ||
-            (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
+            (item.path !== '/dashboard' && item.path !== '/settings' && location.pathname.startsWith(item.path + '/'));
 
           return (
             <Link
               key={item.path}
               to={item.path}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 isActive
@@ -182,13 +189,19 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
               {user?.username || 'User'}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {user?.email || 'user@example.com'}
+              {user?.email || 'No email'}
             </p>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            onClick={logout}
+            onClick={async () => {
+              try {
+                await logout();
+              } catch {
+                toast({ title: 'Logout failed', variant: 'destructive' });
+              }
+            }}
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <LogOut className="h-4 w-4" />
