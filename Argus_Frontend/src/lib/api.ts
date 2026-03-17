@@ -5,7 +5,8 @@ export const setApiBaseUrl = (url: string) => {
 };
 
 export const getApiBaseUrl = () => {
-  return localStorage.getItem('argus_api_url') || 'http://localhost:8080/api/v1';
+  const url = localStorage.getItem('argus_api_url') || 'http://localhost:8080/api/v1';
+  return url.replace(/\/+$/, '');
 };
 
 export interface ApiResponse<T> {
@@ -102,15 +103,25 @@ export async function apiRequest<T>(
 ): Promise<ApiResponse<T>> {
   const url = `${getApiBaseUrl()}${endpoint}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new Error('Unable to connect to the server. Please check that the backend is running.');
+  }
 
-  const data = await response.json();
+  let data: ApiResponse<T>;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`Server returned an unexpected response (HTTP ${response.status}).`);
+  }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -118,7 +129,7 @@ export async function apiRequest<T>(
       localStorage.removeItem('argus_user');
       window.dispatchEvent(new Event('argus:unauthorized'));
     }
-    throw new Error(data.message || 'API request failed');
+    throw new Error(data.message || `API request failed (HTTP ${response.status})`);
   }
 
   return data;
@@ -192,6 +203,12 @@ export const serversApi = {
 
   delete: (id: number) => apiRequest<null>(`/servers/${id}`, { method: 'DELETE' }),
 
+  update: (id: number, data: { name?: string; hostAddress?: string; description?: string }) =>
+    apiRequest<Server>(`/servers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
   regenerateKey: (id: number) =>
     apiRequest<string>(`/servers/${id}/regenerate-key`, { method: 'POST' }),
 
@@ -219,6 +236,8 @@ export const alertsApi = {
 
   resolve: (alertId: number) =>
     apiRequest<null>(`/alerts/${alertId}/resolve`, { method: 'POST' }),
+
+  getResolved: () => apiRequest<Alert[]>('/alerts/resolved'),
 };
 
 // Alert Rules API
@@ -247,4 +266,19 @@ export const alertRulesApi = {
 
   delete: (ruleId: number) =>
     apiRequest<null>(`/alerts/rules/${ruleId}`, { method: 'DELETE' }),
+
+  update: (ruleId: number, data: {
+    name: string;
+    description?: string;
+    metricType: string;
+    conditionOperator: string;
+    thresholdValue: number;
+    durationSeconds?: number;
+    severity: string;
+    cooldownMinutes?: number;
+  }) =>
+    apiRequest<AlertRule>(`/alerts/rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
