@@ -59,8 +59,8 @@ const generateWindowsScript = (agentKey: string, serverUrl: string, serverName: 
 #    powershell -ExecutionPolicy Bypass -File argus-agent.ps1
 # 3. Press Ctrl+C to stop monitoring
 
-$ARGUS_SERVER_URL = "${serverUrl}"
-$AGENT_KEY = "${agentKey}"
+$ARGUS_SERVER_URL = "${serverUrl.replace(/["`$]/g, '`$&')}"
+$AGENT_KEY = "${agentKey.replace(/["`$]/g, '`$&')}"
 
 Write-Host "🚀 Starting Argus Monitoring Agent..."
 Write-Host "📊 Server: $ARGUS_SERVER_URL"
@@ -178,8 +178,8 @@ const generateBashScript = (agentKey: string, serverUrl: string, serverName: str
 # 4. Press Ctrl+C to stop
 #######################################################
 
-ARGUS_SERVER_URL="${serverUrl}"
-AGENT_KEY="${agentKey}"
+ARGUS_SERVER_URL='${serverUrl.replace(/'/g, "'\\''")}'
+AGENT_KEY='${agentKey.replace(/'/g, "'\\''")}'
 INTERVAL=60
 
 echo "🚀 Starting Argus Monitoring Agent..."
@@ -613,8 +613,9 @@ export default function AddServer() {
                   id="name"
                   placeholder="e.g., Production Server 1"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value.slice(0, 255))}
                   required
+                  maxLength={255}
                 />
               </div>
 
