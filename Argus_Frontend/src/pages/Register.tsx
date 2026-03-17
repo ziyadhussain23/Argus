@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import {
   Activity, Eye, EyeOff, Loader2, Server, Bell, Shield, Zap,
   LineChart, Globe, Clock, Users, ChevronRight, CheckCircle2,
-  Cpu, HardDrive, Wifi, BarChart3, ArrowRight, Star
+  Cpu, HardDrive, Wifi, BarChart3, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -23,35 +23,13 @@ const features = [
 ];
 
 const stats = [
-  { value: '99.99%', label: 'Uptime SLA', icon: Clock },
-  { value: '50K+', label: 'Servers Monitored', icon: Server },
-  { value: '1M+', label: 'Alerts Sent', icon: Bell },
-  { value: '10K+', label: 'Happy Users', icon: Users },
+  { value: '24/7', label: 'Real-Time Monitoring', icon: Clock },
+  { value: '∞', label: 'Servers Supported', icon: Server },
+  { value: 'Instant', label: 'Alert Delivery', icon: Bell },
+  { value: 'Free', label: 'Open Source', icon: Users },
 ];
 
-const testimonials = [
-  {
-    quote: "Argus has transformed how we monitor our infrastructure. The real-time alerts have saved us countless hours.",
-    author: "Sarah Chen",
-    role: "DevOps Lead",
-    company: "TechCorp",
-    rating: 5
-  },
-  {
-    quote: "The best monitoring solution we've used. Simple to set up, powerful features, and excellent support.",
-    author: "Michael Roberts",
-    role: "CTO",
-    company: "StartupXYZ",
-    rating: 5
-  },
-  {
-    quote: "Finally, a monitoring tool that just works. The dashboard is beautiful and the alerts are spot-on.",
-    author: "Emily Watson",
-    role: "System Admin",
-    company: "DataFlow Inc",
-    rating: 5
-  },
-];
+
 
 const metrics = [
   { icon: Cpu, label: 'CPU Usage', value: '23%', color: 'text-emerald-500' },
@@ -67,24 +45,47 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [usernameError, setUsernameError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const validateUsername = (value: string) => {
+    if (!value.trim()) return 'Username is required';
+    if (value.length < 3) return 'Username must be at least 3 characters';
+    if (value.length > 50) return 'Username must be 50 characters or fewer';
+    if (!/^[a-zA-Z0-9_.-]+$/.test(value)) return 'Only letters, numbers, underscores, dots, and hyphens allowed';
+    return '';
+  };
+
+  const validateEmail = (value: string) => {
+    if (!value.trim()) return 'Email is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+    return '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const uError = validateUsername(username);
+    const eError = validateEmail(email);
+    setUsernameError(uError);
+    setEmailError(eError);
+    if (uError || eError) return;
 
     if (password !== confirmPassword) {
       toast({
         title: 'Passwords do not match',
         description: 'Please make sure your passwords match.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      toast({
+        title: 'Weak password',
+        description: 'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
         variant: 'destructive',
       });
       return;
@@ -114,6 +115,20 @@ export default function Register() {
 
   return (
     <div className="min-h-screen relative overflow-x-hidden">
+      {/* Back button */}
+      <div className="fixed top-5 left-5 z-50">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/')}
+          aria-label="Go back to home"
+          className="rounded-full bg-background/90 backdrop-blur-md shadow-md gap-2 px-4"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back</span>
+        </Button>
+      </div>
+
       {/* Theme toggle */}
       <div className="fixed top-4 right-4 z-50">
         <ThemeToggle />
@@ -236,12 +251,14 @@ export default function Register() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <Link to="/" className="flex items-center gap-3 mb-8">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
-                <Activity className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="font-display text-2xl font-bold">Argus</span>
-            </Link>
+            <div className="flex items-center gap-3 mb-8">
+              <Link to="/" className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
+                  <Activity className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <span className="font-display text-2xl font-bold">Argus</span>
+              </Link>
+            </div>
 
             <h1 className="font-display text-3xl font-bold text-foreground">
               Create an account
@@ -258,10 +275,13 @@ export default function Register() {
                   type="text"
                   placeholder="Choose a username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => { setUsername(e.target.value); if (usernameError) setUsernameError(validateUsername(e.target.value)); }}
                   required
-                  className="h-12"
+                  minLength={3}
+                  maxLength={50}
+                  className={`h-12 ${usernameError ? 'border-destructive' : ''}`}
                 />
+                {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
               </div>
 
               <div className="space-y-2">
@@ -271,10 +291,11 @@ export default function Register() {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(validateEmail(e.target.value)); }}
                   required
-                  className="h-12"
+                  className={`h-12 ${emailError ? 'border-destructive' : ''}`}
                 />
+                {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
               </div>
 
               <div className="space-y-2">
@@ -295,10 +316,40 @@ export default function Register() {
                     size="icon"
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {password && (() => {
+                  const checks = [
+                    { pass: password.length >= 8, label: 'At least 8 characters' },
+                    { pass: /[a-z]/.test(password), label: 'Lowercase letter (a-z)' },
+                    { pass: /[A-Z]/.test(password), label: 'Uppercase letter (A-Z)' },
+                    { pass: /[0-9]/.test(password), label: 'Number (0-9)' },
+                    { pass: /[^A-Za-z0-9]/.test(password), label: 'Special character (!@#$...)' },
+                  ];
+                  const strength = checks.filter(c => c.pass).length;
+                  const label = strength <= 2 ? 'Weak' : strength <= 3 ? 'Fair' : strength <= 4 ? 'Good' : 'Strong';
+                  const color = strength <= 2 ? 'bg-red-500' : strength <= 3 ? 'bg-amber-500' : strength <= 4 ? 'bg-blue-500' : 'bg-green-500';
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <div key={i} className={`h-1 flex-1 rounded-full ${i <= strength ? color : 'bg-muted'}`} />
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Password strength: {label}</p>
+                      <ul className="space-y-0.5">
+                        {checks.map((c, i) => (
+                          <li key={i} className={`text-xs flex items-center gap-1.5 ${c.pass ? 'text-green-500' : 'text-muted-foreground'}`}>
+                            <span>{c.pass ? '✓' : '○'}</span>{c.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="space-y-2">
@@ -419,61 +470,6 @@ export default function Register() {
                 <div className="text-muted-foreground">{stat.label}</div>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-24 bg-background relative overflow-hidden">
-        <div className="container mx-auto px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="font-display text-4xl font-bold text-foreground mb-4">
-              Trusted by <span className="text-gradient-primary">Thousands</span>
-            </h2>
-            <p className="text-muted-foreground text-lg">
-              See what our customers have to say about Argus
-            </p>
-          </motion.div>
-
-          <div className="max-w-4xl mx-auto">
-            <motion.div
-              key={activeTestimonial}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-8 md:p-12 text-center"
-            >
-              <div className="flex justify-center mb-6">
-                {[...Array(testimonials[activeTestimonial].rating)].map((_, i) => (
-                  <Star key={i} className="h-6 w-6 text-amber-400 fill-amber-400" />
-                ))}
-              </div>
-              <blockquote className="font-display text-2xl md:text-3xl text-foreground mb-8 leading-relaxed">
-                "{testimonials[activeTestimonial].quote}"
-              </blockquote>
-              <div>
-                <div className="font-semibold text-foreground">{testimonials[activeTestimonial].author}</div>
-                <div className="text-muted-foreground">
-                  {testimonials[activeTestimonial].role} at {testimonials[activeTestimonial].company}
-                </div>
-              </div>
-            </motion.div>
-
-            <div className="flex justify-center gap-2 mt-8">
-              {testimonials.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveTestimonial(i)}
-                  className={`w-3 h-3 rounded-full transition-all ${i === activeTestimonial ? 'bg-primary w-8' : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
-                    }`}
-                />
-              ))}
-            </div>
           </div>
         </div>
       </section>
