@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
 import {
-    Activity, Server, Bell, Shield, Zap, LineChart, Globe, Clock,
-    Users, ChevronRight, CheckCircle2, Cpu, Database, Code2,
-    GitBranch, Layers, Lock, ArrowRight, Heart, Target, Rocket, ArrowLeft
+    Activity, Server, Bell, Shield, Zap, LineChart, Globe,
+    ChevronRight, CheckCircle2, Cpu, Database, Code2,
+    GitBranch, Layers, Heart, Target, Rocket, ArrowLeft
 } from 'lucide-react';
 
 const features = [
@@ -20,7 +20,7 @@ const features = [
 const techStack = [
     { icon: Code2, name: 'React + TypeScript', desc: 'Modern frontend' },
     { icon: Database, name: 'Spring Boot', desc: 'Robust backend' },
-    { icon: Layers, name: 'PostgreSQL', desc: 'Reliable storage' },
+    { icon: Layers, name: 'MySQL', desc: 'Reliable storage' },
     { icon: GitBranch, name: 'WebSocket', desc: 'Live updates' },
 ];
 
@@ -31,10 +31,10 @@ const values = [
 ];
 
 const stats = [
-    { value: '99.99%', label: 'Platform Uptime' },
-    { value: '50K+', label: 'Servers Monitored' },
+    { value: '24/7', label: 'Real-Time Monitoring' },
+    { value: '∞', label: 'Servers Supported' },
     { value: '<1s', label: 'Alert Latency' },
-    { value: '24/7', label: 'Support Available' },
+    { value: 'Free', label: 'Open Source' },
 ];
 
 export default function About() {
@@ -49,7 +49,7 @@ export default function About() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => navigate(-1)}
+                            onClick={() => navigate('/')}
                             className="h-9 w-9"
                         >
                             <ArrowLeft className="h-5 w-5" />
