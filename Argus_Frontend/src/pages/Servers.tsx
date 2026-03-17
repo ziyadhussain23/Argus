@@ -1,17 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ServerCard } from '@/components/ServerCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Plus, 
-  Search, 
-  Server as ServerIcon, 
-  Loader2,
+import {
+  Plus,
+  Search,
+  Server as ServerIcon,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  Upload
 } from 'lucide-react';
 import { serversApi, Server } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,8 @@ export default function Servers() {
   const [servers, setServers] = useState<Server[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name-az');
   const { toast } = useToast();
@@ -50,15 +52,37 @@ export default function Servers() {
     };
 
     fetchServers();
-    // Poll every 10 seconds for real-time updates
-    const interval = setInterval(fetchServers, 10000);
-    return () => clearInterval(interval);
+    // Poll every 10 seconds, but pause when tab is hidden
+    let interval = setInterval(fetchServers, 10000);
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(interval);
+      } else {
+        fetchServers();
+        interval = setInterval(fetchServers, 10000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
-  const filteredServers = servers.filter((server) => {
-    const matchesSearch = 
-      server.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      server.hostAddress.toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    return () => clearTimeout(debounceTimer.current);
+  }, []);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => setDebouncedSearch(value), 300);
+  };
+
+  const filteredServers = useMemo(() => servers.filter((server) => {
+    const matchesSearch =
+      server.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+      server.hostAddress.toLowerCase().includes(debouncedSearch.toLowerCase());
     const matchesStatus = statusFilter === 'all' || server.status === statusFilter;
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
@@ -81,15 +105,15 @@ export default function Servers() {
       }
       default: return 0;
     }
-  });
+  }), [servers, debouncedSearch, statusFilter, sortBy]);
 
-  const statusCounts = {
+  const statusCounts = useMemo(() => ({
     all: servers.length,
     ONLINE: servers.filter(s => s.status === 'ONLINE').length,
     OFFLINE: servers.filter(s => s.status === 'OFFLINE').length,
     WARNING: servers.filter(s => s.status === 'WARNING').length,
     CRITICAL: servers.filter(s => s.status === 'CRITICAL').length,
-  };
+  }), [servers]);
 
   return (
     <MainLayout>
@@ -102,12 +126,20 @@ export default function Servers() {
               Manage and monitor your server fleet
             </p>
           </div>
-          <Link to="/servers/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Server
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/servers/import">
+              <Button variant="outline">
+                <Upload className="mr-2 h-4 w-4" />
+                Bulk Import
+              </Button>
+            </Link>
+            <Link to="/servers/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Server
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Filters */}
@@ -117,7 +149,7 @@ export default function Servers() {
             <Input
               placeholder="Search servers by name or address..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10"
             />
           </div>
