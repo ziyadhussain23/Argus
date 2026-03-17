@@ -53,6 +53,7 @@ import {
   Activity,
   Zap,
   ArrowRight,
+  Pencil,
 } from 'lucide-react';
 import { serversApi, alertRulesApi, Server as ServerType, AlertRule } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -152,10 +153,23 @@ export default function AlertRules() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Form state
   const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    metricType: '',
+    conditionOperator: '',
+    thresholdValue: '',
+    durationSeconds: '60',
+    severity: '',
+    cooldownMinutes: '5',
+  });
+
+  const [editFormData, setEditFormData] = useState({
     name: '',
     description: '',
     metricType: '',
@@ -207,6 +221,29 @@ export default function AlertRules() {
 
   const handleCreateRule = async () => {
     if (!selectedServer) return;
+
+    // Form validation
+    if (!formData.name.trim()) {
+      toast({ title: 'Rule name is required', variant: 'destructive' });
+      return;
+    }
+    if (!formData.metricType) {
+      toast({ title: 'Please select a metric type', variant: 'destructive' });
+      return;
+    }
+    if (!formData.conditionOperator) {
+      toast({ title: 'Please select a condition', variant: 'destructive' });
+      return;
+    }
+    if (!formData.thresholdValue || isNaN(Number(formData.thresholdValue))) {
+      toast({ title: 'Please enter a valid threshold value', variant: 'destructive' });
+      return;
+    }
+    if (!formData.severity) {
+      toast({ title: 'Please select a severity', variant: 'destructive' });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -265,6 +302,92 @@ export default function AlertRules() {
       toast({ title: 'Rule deleted' });
     } catch (error) {
       toast({ title: 'Failed to delete rule', variant: 'destructive' });
+    }
+  };
+
+  const openEditDialog = (rule: AlertRule) => {
+    setEditingRule(rule);
+    setEditFormData({
+      name: rule.name,
+      description: rule.description || '',
+      metricType: rule.metricType,
+      conditionOperator: rule.conditionOperator,
+      thresholdValue: rule.thresholdValue.toString(),
+      durationSeconds: (rule.durationSeconds || 60).toString(),
+      severity: rule.severity,
+      cooldownMinutes: (rule.cooldownMinutes || 5).toString(),
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateRule = async () => {
+    if (!editingRule || !selectedServer) return;
+    if (!editFormData.name.trim()) {
+      toast({ title: 'Rule name is required', variant: 'destructive' });
+      return;
+    }
+    if (!editFormData.metricType || !editFormData.conditionOperator || !editFormData.severity) {
+      toast({ title: 'Please fill in all required fields', variant: 'destructive' });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      // Backend has no PUT endpoint — delete old rule then create a new one.
+      // Save the new rule data first so we can re-create the original if create fails.
+      const newRuleData = {
+        name: editFormData.name,
+        description: editFormData.description || undefined,
+        serverId: Number(selectedServer),
+        metricType: editFormData.metricType,
+        conditionOperator: editFormData.conditionOperator,
+        thresholdValue: Number(editFormData.thresholdValue),
+        durationSeconds: Number(editFormData.durationSeconds),
+        severity: editFormData.severity,
+        cooldownMinutes: Number(editFormData.cooldownMinutes),
+      };
+
+      await alertRulesApi.delete(editingRule.id);
+
+      let response;
+      try {
+        response = await alertRulesApi.create(newRuleData);
+      } catch (createError) {
+        // Create failed after delete — try to restore the original rule
+        try {
+          await alertRulesApi.create({
+            name: editingRule.name,
+            description: editingRule.description || undefined,
+            serverId: Number(selectedServer),
+            metricType: editingRule.metricType,
+            conditionOperator: editingRule.conditionOperator,
+            thresholdValue: editingRule.thresholdValue,
+            durationSeconds: editingRule.durationSeconds || 60,
+            severity: editingRule.severity,
+            cooldownMinutes: editingRule.cooldownMinutes || 5,
+          });
+          toast({ title: 'Update failed — original rule restored', variant: 'destructive' });
+        } catch {
+          toast({ title: 'Update failed and could not restore original rule', variant: 'destructive' });
+        }
+        fetchRules();
+        return;
+      }
+
+      if (response.success) {
+        setRules(rules.map(r => r.id === editingRule.id ? response.data : r));
+        setIsEditDialogOpen(false);
+        setEditingRule(null);
+        toast({ title: 'Rule updated successfully' });
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to update rule',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive',
+      });
+      fetchRules();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -527,12 +650,22 @@ export default function AlertRules() {
                       />
                     </TableCell>
                     <TableCell>
-                      <AlertDialog>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(rule)}
+                          aria-label={`Edit rule ${rule.name}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="text-destructive hover:text-destructive"
+                            aria-label={`Delete rule ${rule.name}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -550,6 +683,7 @@ export default function AlertRules() {
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -634,7 +768,7 @@ export default function AlertRules() {
                         </p>
                         <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                           <code className="bg-muted px-1.5 py-0.5 rounded">
-                            {suggestion.metricType.replace('_', ' ')} {suggestion.operator === 'GREATER_THAN' ? '>' : '<'} {suggestion.threshold}
+                            {suggestion.metricType.replace(/_/g, ' ')} {suggestion.operator === 'GREATER_THAN' ? '>' : '<'} {suggestion.threshold}
                           </code>
                         </div>
                       </div>
@@ -647,6 +781,71 @@ export default function AlertRules() {
           </div>
         )}
       </div>
+
+      {/* Edit Rule Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Alert Rule</DialogTitle>
+            <DialogDescription>Update the alert rule configuration.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Rule Name</Label>
+              <Input value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input value={editFormData.description} onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Metric Type</Label>
+                <Select value={editFormData.metricType} onValueChange={(v) => setEditFormData({ ...editFormData, metricType: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{METRIC_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Condition</Label>
+                <Select value={editFormData.conditionOperator} onValueChange={(v) => setEditFormData({ ...editFormData, conditionOperator: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{OPERATORS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Threshold</Label>
+                <Input type="number" value={editFormData.thresholdValue} onChange={(e) => setEditFormData({ ...editFormData, thresholdValue: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Severity</Label>
+                <Select value={editFormData.severity} onValueChange={(v) => setEditFormData({ ...editFormData, severity: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{SEVERITIES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Duration (seconds)</Label>
+                <Input type="number" value={editFormData.durationSeconds} onChange={(e) => setEditFormData({ ...editFormData, durationSeconds: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Cooldown (minutes)</Label>
+                <Input type="number" value={editFormData.cooldownMinutes} onChange={(e) => setEditFormData({ ...editFormData, cooldownMinutes: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateRule} disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
