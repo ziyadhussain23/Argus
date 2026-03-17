@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,14 +39,28 @@ const metrics = [
   { icon: BarChart3, label: 'Disk I/O', value: '340MB/s', color: 'text-amber-500', bg: 'bg-amber-500' },
 ];
 
-const testimonials: { quote: string; author: string; role: string; rating: number }[] = [];
-
 const faqs = [
   { q: "What is Argus?", a: "Argus is a real-time server monitoring system built with Spring Boot and React. It collects CPU, Memory, Disk, and Network metrics via a lightweight agent." },
   { q: "How do I install the agent?", a: "Run the PowerShell or Bash agent script on your server with the agent key from the dashboard. It starts sending metrics immediately." },
   { q: "What technologies does Argus use?", a: "Backend: Spring Boot, MySQL, Redis, WebSocket (STOMP/SockJS). Frontend: React, TypeScript, Tailwind CSS, shadcn/ui, Recharts." },
   { q: "Can I set custom alert rules?", a: "Yes, you can configure alert rules for CPU, Memory, Disk, and Network thresholds with email notifications." },
 ];
+
+const STARS = Array.from({ length: 20 }, () => ({
+  top: `${Math.random() * 100}%`,
+  left: `${Math.random() * 100}%`,
+  size: `${Math.random() * 2 + 1}px`,
+  duration: Math.random() * 3 + 2,
+  delay: Math.random() * 2,
+}));
+
+const DIAMONDS = Array.from({ length: 10 }, () => ({
+  top: `${Math.random() * 100}%`,
+  left: `${Math.random() * 100}%`,
+  size: `${Math.random() * 10 + 5}px`,
+  duration: Math.random() * 5 + 5,
+  delay: Math.random() * 2,
+}));
 
 export default function Index() {
   const { isAuthenticated } = useAuth();
@@ -91,7 +106,6 @@ export default function Index() {
       {/* Hero Section */}
       <section className="pt-32 pb-24 relative overflow-hidden">
         {/* Animated background */}
-        {/* Animated background */}
         <div className="absolute inset-0">
           {/* Blobs */}
           <motion.div
@@ -111,34 +125,34 @@ export default function Index() {
           />
 
           {/* Stars (Twinkling Dots) */}
-          {[...Array(20)].map((_, i) => (
+          {STARS.map((star, i) => (
             <motion.div
               key={`star-${i}`}
               className="absolute bg-white rounded-full"
               style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                width: `${Math.random() * 2 + 1}px`,
-                height: `${Math.random() * 2 + 1}px`,
+                top: star.top,
+                left: star.left,
+                width: star.size,
+                height: star.size,
               }}
               animate={{ opacity: [0.2, 1, 0.2], scale: [1, 1.5, 1] }}
-              transition={{ duration: Math.random() * 3 + 2, repeat: Infinity, delay: Math.random() * 2 }}
+              transition={{ duration: star.duration, repeat: Infinity, delay: star.delay }}
             />
           ))}
 
           {/* Diamonds (Floating Squares) */}
-          {[...Array(10)].map((_, i) => (
+          {DIAMONDS.map((diamond, i) => (
             <motion.div
               key={`diamond-${i}`}
               className="absolute border border-primary/20 rotate-45"
               style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                width: `${Math.random() * 10 + 5}px`,
-                height: `${Math.random() * 10 + 5}px`,
+                top: diamond.top,
+                left: diamond.left,
+                width: diamond.size,
+                height: diamond.size,
               }}
               animate={{ y: [0, -20, 0], opacity: [0.3, 0.6, 0.3], rotate: [45, 90, 45] }}
-              transition={{ duration: Math.random() * 5 + 5, repeat: Infinity, delay: Math.random() * 2 }}
+              transition={{ duration: diamond.duration, repeat: Infinity, delay: diamond.delay }}
             />
           ))}
         </div>
@@ -225,7 +239,7 @@ export default function Index() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-xs text-muted-foreground">Live</span>
+                      <span className="text-xs text-muted-foreground">Demo Preview</span>
                     </div>
                   </div>
 
@@ -794,7 +808,7 @@ export default function Index() {
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Link to="/docs/getting-started" className="group relative overflow-hidden rounded-2xl bg-background border border-border hover:border-primary/50 transition-all p-8">
+            <Link to="/help" className="group relative overflow-hidden rounded-2xl bg-background border border-border hover:border-primary/50 transition-all p-8">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-150" />
               <div className="relative z-10">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 mb-6">
@@ -810,7 +824,7 @@ export default function Index() {
               </div>
             </Link>
 
-            <Link to="/docs/api" className="group relative overflow-hidden rounded-2xl bg-background border border-border hover:border-primary/50 transition-all p-8">
+            <Link to="/help" className="group relative overflow-hidden rounded-2xl bg-background border border-border hover:border-primary/50 transition-all p-8">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-150" />
               <div className="relative z-10">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 mb-6">
@@ -826,7 +840,7 @@ export default function Index() {
               </div>
             </Link>
 
-            <Link to="/docs/security" className="group relative overflow-hidden rounded-2xl bg-background border border-border hover:border-primary/50 transition-all p-8">
+            <Link to="/help" className="group relative overflow-hidden rounded-2xl bg-background border border-border hover:border-primary/50 transition-all p-8">
               <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-bl-full -mr-16 -mt-16 transition-transform group-hover:scale-150" />
               <div className="relative z-10">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 text-red-500 mb-6">
@@ -872,7 +886,7 @@ export default function Index() {
               <h4 className="font-semibold text-foreground mb-4">Support</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <Link to="/help" className="block hover:text-primary transition-colors">Help Center</Link>
-                <Link to="/docs" className="block hover:text-primary transition-colors">Documentation</Link>
+                <Link to="/help" className="block hover:text-primary transition-colors">Documentation</Link>
                 <Link to="/status" className="block hover:text-primary transition-colors">Status</Link>
               </div>
             </div>
@@ -889,9 +903,9 @@ export default function Index() {
               © {new Date().getFullYear()} Argus. All rights reserved.
             </div>
             <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
-              <Link to="/terms" className="hover:text-primary transition-colors">Terms</Link>
-              <Link to="/cookies" className="hover:text-primary transition-colors">Cookies</Link>
+              <Link to="/about" className="hover:text-primary transition-colors">Privacy</Link>
+              <Link to="/about" className="hover:text-primary transition-colors">Terms</Link>
+              <Link to="/about" className="hover:text-primary transition-colors">Cookies</Link>
             </div>
           </div>
         </div>
