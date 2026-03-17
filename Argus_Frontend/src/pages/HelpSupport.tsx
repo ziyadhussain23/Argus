@@ -53,10 +53,10 @@ const supportOptions = [
 ];
 
 const quickLinks = [
-    { icon: Book, title: 'Getting Started Guide', desc: 'Learn the basics in 5 minutes' },
-    { icon: Wrench, title: 'Troubleshooting', desc: 'Common issues and solutions' },
-    { icon: Zap, title: 'API Documentation', desc: 'Integrate with your tools' },
-    { icon: Globe, title: 'Status Page', desc: 'Check system status' },
+    { icon: Book, title: 'Getting Started Guide', desc: 'Learn the basics in 5 minutes', path: '/about' },
+    { icon: Wrench, title: 'Troubleshooting', desc: 'Common issues and solutions', path: '/faq' },
+    { icon: Zap, title: 'API Documentation', desc: 'Integrate with your tools', path: '/about' },
+    { icon: Globe, title: 'Status Page', desc: 'Check system status', path: '/status' },
 ];
 
 const contactInfo = [
@@ -77,14 +77,20 @@ export default function HelpSupport() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!name.trim() || !email.trim() || !subject.trim() || !message.trim()) {
+            toast({ title: 'Please fill all fields', variant: 'destructive' });
+            return;
+        }
         setIsSubmitting(true);
 
-        // Simulate form submission
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Send via mailto as backend has no contact endpoint
+        const mailBody = `Name: ${name}\nEmail: ${email}\n\n${message}`;
+        const mailtoLink = `mailto:support@argus.io?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mailBody)}`;
+        window.open(mailtoLink, '_blank');
 
         toast({
-            title: 'Message sent!',
-            description: 'We\'ll get back to you within 24-48 hours.',
+            title: 'Email client opened!',
+            description: 'Please send the email from your mail app. We\'ll respond within 24-48 hours.',
         });
 
         // Reset form
@@ -202,7 +208,19 @@ export default function HelpSupport() {
                                 <h3 className="font-display text-xl font-semibold text-foreground mb-2">{option.title}</h3>
                                 <p className="text-muted-foreground mb-4 text-sm">{option.desc}</p>
                                 <div className="text-sm text-muted-foreground mb-4">{option.action}</div>
-                                <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                                <Button
+                                    variant="outline"
+                                    className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                                    onClick={() => {
+                                        if (option.title === 'Email Support') {
+                                            window.location.href = `mailto:${option.action}`;
+                                        } else if (option.title === 'Documentation') {
+                                            window.location.href = '/help';
+                                        } else if (option.title === 'Community') {
+                                            window.location.href = '/faq';
+                                        }
+                                    }}
+                                >
                                     {option.buttonText}
                                     <ChevronRight className="ml-2 h-4 w-4" />
                                 </Button>
@@ -353,22 +371,21 @@ export default function HelpSupport() {
                                     Quick Links
                                 </h3>
                                 <div className="space-y-3">
-                                    {quickLinks.map((link, i) => (
-                                        <motion.a
+                                    {quickLinks.map((ql, i) => (
+                                        <Link
                                             key={i}
-                                            href="#"
+                                            to={ql.path}
                                             className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted transition-colors group"
-                                            whileHover={{ x: 5 }}
                                         >
                                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                                                <link.icon className="h-5 w-5" />
+                                                <ql.icon className="h-5 w-5" />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="text-foreground font-medium">{link.title}</div>
-                                                <div className="text-sm text-muted-foreground">{link.desc}</div>
+                                                <div className="text-foreground font-medium">{ql.title}</div>
+                                                <div className="text-sm text-muted-foreground">{ql.desc}</div>
                                             </div>
-                                            <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                                        </motion.a>
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                        </Link>
                                     ))}
                                 </div>
                             </div>
