@@ -12,10 +12,8 @@ import nightswatch.argus.service.NotificationPreferenceService;
 import nightswatch.argus.service.PhoneVerificationService;
 import nightswatch.argus.service.SmsRateLimiter;
 import nightswatch.argus.service.SmsService;
-import nightswatch.argus.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -31,16 +29,14 @@ public class NotificationPreferenceController {
     private final PhoneVerificationService phoneVerificationService;
     private final SmsService smsService;
     private final SmsRateLimiter smsRateLimiter;
-    private final UserService userService;
 
     /**
      * Get current user's notification preferences.
      */
     @GetMapping("/preferences")
     public ResponseEntity<ApiResponse<NotificationPreferenceResponse>> getPreferences(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+            @AuthenticationPrincipal User user) {
+
         NotificationPreferenceResponse response = preferenceService.getPreferences(user.getId());
         
         return ResponseEntity.ok(ApiResponse.success("Notification preferences retrieved", response));
@@ -51,10 +47,9 @@ public class NotificationPreferenceController {
      */
     @PutMapping("/preferences")
     public ResponseEntity<ApiResponse<NotificationPreferenceResponse>> updatePreferences(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal User user,
             @Valid @RequestBody NotificationPreferenceRequest request) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+
         log.info("Updating notification preferences for user: {}", user.getUsername());
         
         NotificationPreferenceResponse response = preferenceService.updatePreferences(user.getId(), request);
@@ -67,10 +62,9 @@ public class NotificationPreferenceController {
      */
     @PutMapping("/phone")
     public ResponseEntity<ApiResponse<String>> updatePhoneNumber(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal User user,
             @Valid @RequestBody PhoneNumberUpdateRequest request) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+
         log.info("Updating phone number for user: {}", user.getUsername());
         
         phoneVerificationService.updatePhoneNumber(user.getId(), request.getPhoneNumber());
@@ -86,9 +80,8 @@ public class NotificationPreferenceController {
      */
     @DeleteMapping("/phone")
     public ResponseEntity<ApiResponse<String>> removePhoneNumber(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+            @AuthenticationPrincipal User user) {
+
         log.info("Removing phone number for user: {}", user.getUsername());
         
         phoneVerificationService.removePhoneNumber(user.getId());
@@ -101,9 +94,8 @@ public class NotificationPreferenceController {
      */
     @PostMapping("/phone/verify/send")
     public ResponseEntity<ApiResponse<String>> sendVerificationOtp(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+            @AuthenticationPrincipal User user) {
+
         log.info("Sending phone verification OTP for user: {}", user.getUsername());
         
         phoneVerificationService.sendVerificationOtp(user.getId());
@@ -119,10 +111,9 @@ public class NotificationPreferenceController {
      */
     @PostMapping("/phone/verify")
     public ResponseEntity<ApiResponse<String>> verifyPhone(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal User user,
             @RequestParam String otp) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+
         log.info("Verifying phone for user: {}", user.getUsername());
         
         phoneVerificationService.verifyOtp(user.getId(), otp);
@@ -138,9 +129,8 @@ public class NotificationPreferenceController {
      */
     @PostMapping("/sms/test")
     public ResponseEntity<ApiResponse<String>> sendTestSms(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+            @AuthenticationPrincipal User user) {
+
         log.info("Sending test SMS for user: {}", user.getUsername());
         
         smsService.sendTestSms(user);
@@ -156,9 +146,8 @@ public class NotificationPreferenceController {
      */
     @GetMapping("/sms/usage")
     public ResponseEntity<ApiResponse<SmsRateLimiter.SmsUsageStats>> getSmsUsage(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        
-        User user = userService.findByUsername(userDetails.getUsername());
+            @AuthenticationPrincipal User user) {
+
         SmsRateLimiter.SmsUsageStats stats = smsRateLimiter.getUsageStats(user.getId());
         
         return ResponseEntity.ok(ApiResponse.success("SMS usage statistics", stats));
