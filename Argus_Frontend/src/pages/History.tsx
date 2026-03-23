@@ -18,6 +18,12 @@ import {
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarWidget } from '@/components/ui/calendar';
+import {
     History,
     Loader2,
     LineChart as LineChartIcon,
@@ -52,10 +58,11 @@ import {
     LineChart, Line, AreaChart, Area, BarChart, Bar,
     ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Legend as RechartsLegend,
 } from 'recharts';
+import { format } from 'date-fns';
 
 type ChartType = 'line' | 'area' | 'bar';
 type MetricType = 'CPU_USAGE' | 'MEMORY_USAGE' | 'DISK_USAGE' | 'LOAD_AVERAGE';
-type TimeFrame = '1h' | '6h' | '24h' | '7d' | '30d';
+type TimeFrame = '1h' | '6h' | '24h' | '7d' | '30d' | 'custom';
 
 interface AggregatedMetric {
     time: string;
@@ -103,6 +110,8 @@ export default function HistoryPage() {
     const [customColor, setCustomColor] = useState<string>('');
     const [overlayMode, setOverlayMode] = useState(false);
     const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
+    const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
+    const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
     const [historyData, setHistoryData] = useState<AggregatedMetric[]>([]);
     const [isExporting, setIsExporting] = useState(false);
     const chartRef = useRef<HTMLDivElement>(null);
@@ -128,7 +137,7 @@ export default function HistoryPage() {
         if (servers.length === 0) return;
 
         setIsLoadingHistory(true);
-        const timeConfig = timeFrameOptions.find(t => t.value === timeFrame)!;
+        const timeConfig = timeFrameOptions.find(t => t.value === timeFrame) || timeFrameOptions[2]; // default 24h
 
         try {
             // Filter servers based on selection
@@ -150,17 +159,32 @@ export default function HistoryPage() {
 
             // Calculate time range
             const now = Date.now();
-            const timeRangeMs = {
-                '1h': 60 * 60 * 1000,
-                '6h': 6 * 60 * 60 * 1000,
-                '24h': 24 * 60 * 60 * 1000,
-                '7d': 7 * 24 * 60 * 60 * 1000,
-                '30d': 30 * 24 * 60 * 60 * 1000,
-            }[timeFrame];
-            const startTime = now - timeRangeMs;
+            let startTime: number;
+            let bucketSize: number;
+            let maxDataPoints: number;
+
+            if (timeFrame === 'custom' && customDateFrom && customDateTo) {
+                startTime = customDateFrom.getTime();
+                const endTime = customDateTo.getTime();
+                const rangeMs = endTime - startTime;
+                // Dynamic bucket: aim for ~120 data points
+                bucketSize = Math.max(60000, Math.floor(rangeMs / 120));
+                maxDataPoints = 120;
+            } else {
+                const timeRangeMs = {
+                    '1h': 60 * 60 * 1000,
+                    '6h': 6 * 60 * 60 * 1000,
+                    '24h': 24 * 60 * 60 * 1000,
+                    '7d': 7 * 24 * 60 * 60 * 1000,
+                    '30d': 30 * 24 * 60 * 60 * 1000,
+                    'custom': 24 * 60 * 60 * 1000,
+                }[timeFrame];
+                startTime = now - timeRangeMs;
+                bucketSize = timeConfig.bucketMinutes * 60 * 1000;
+                maxDataPoints = timeConfig.dataPoints;
+            }
 
             // Aggregate metrics by timestamp buckets
-            const bucketSize = timeConfig.bucketMinutes * 60 * 1000;
             const bucketMap = new Map<number, { cpu: number[]; memory: number[]; disk: number[]; load: number[] }>();
 
             allResults.forEach((serverMetrics) => {
@@ -209,7 +233,7 @@ export default function HistoryPage() {
                     load: values.load.length > 0 ? values.load.reduce((a, b) => a + b, 0) / values.load.length : 0,
                 }))
                 .sort((a, b) => a.timestamp - b.timestamp)
-                .slice(-timeConfig.dataPoints);
+                .slice(-maxDataPoints);
 
             setHistoryData(aggregated);
         } catch (error) {
@@ -231,7 +255,7 @@ export default function HistoryPage() {
         if (servers.length > 0) {
             fetchHistoryData();
         }
-    }, [servers.length, timeFrame, selectedServer]);
+    }, [servers.length, timeFrame, selectedServer, customDateFrom, customDateTo]);
 
     const getMetricData = () => {
         const key = selectedMetric === 'CPU_USAGE' ? 'cpu'
@@ -641,6 +665,46 @@ export default function HistoryPage() {
                                         {option.label}
                                     </Button>
                                 ))}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant={timeFrame === 'custom' ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setTimeFrame('custom')}
+                                            className={`h-9 flex-1 transition-all ${timeFrame === 'custom'
+                                                ? 'ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg'
+                                                : 'hover:border-primary/50'
+                                                }`}
+                                        >
+                                            <Calendar className="mr-2 h-3 w-3" />
+                                            {timeFrame === 'custom' && customDateFrom && customDateTo
+                                                ? `${format(customDateFrom, 'MMM d')} - ${format(customDateTo, 'MMM d')}`
+                                                : 'Custom'}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <div className="flex flex-col sm:flex-row">
+                                            <div className="p-3 border-b sm:border-b-0 sm:border-r border-border">
+                                                <p className="text-xs font-medium text-muted-foreground mb-2">From</p>
+                                                <CalendarWidget
+                                                    mode="single"
+                                                    selected={customDateFrom}
+                                                    onSelect={(date) => { setCustomDateFrom(date); setTimeFrame('custom'); }}
+                                                    disabled={(date) => date > new Date()}
+                                                />
+                                            </div>
+                                            <div className="p-3">
+                                                <p className="text-xs font-medium text-muted-foreground mb-2">To</p>
+                                                <CalendarWidget
+                                                    mode="single"
+                                                    selected={customDateTo}
+                                                    onSelect={(date) => { setCustomDateTo(date); setTimeFrame('custom'); }}
+                                                    disabled={(date) => date > new Date() || (customDateFrom ? date < customDateFrom : false)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
                     </div>
