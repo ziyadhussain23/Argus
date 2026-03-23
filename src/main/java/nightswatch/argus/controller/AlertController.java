@@ -3,6 +3,7 @@ package nightswatch.argus.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import nightswatch.argus.dto.request.AlertRuleRequest;
+import nightswatch.argus.dto.request.AlertRuleUpdateRequest;
 import nightswatch.argus.dto.response.AlertResponse;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.entity.AlertRule;
@@ -60,6 +61,16 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success("Alert rule deleted", null));
     }
 
+    @PutMapping("/rules/{ruleId}")
+    public ResponseEntity<ApiResponse<AlertRule>> updateAlertRule(
+            @PathVariable Long ruleId,
+            @Valid @RequestBody AlertRuleUpdateRequest request,
+            @AuthenticationPrincipal User user) {
+
+        AlertRule rule = alertService.updateAlertRule(ruleId, request, user);
+        return ResponseEntity.ok(ApiResponse.success("Alert rule updated", rule));
+    }
+
     // ==================== Alerts ====================
 
     @GetMapping
@@ -76,6 +87,14 @@ public class AlertController {
             @AuthenticationPrincipal User user) {
         
         List<AlertResponse> alerts = alertService.getAlertsByServer(serverId, user);
+        return ResponseEntity.ok(ApiResponse.success(alerts));
+    }
+
+    @GetMapping("/resolved")
+    public ResponseEntity<ApiResponse<List<AlertResponse>>> getResolvedAlerts(
+            @AuthenticationPrincipal User user) {
+
+        List<AlertResponse> alerts = alertService.getResolvedAlerts(user);
         return ResponseEntity.ok(ApiResponse.success(alerts));
     }
 
