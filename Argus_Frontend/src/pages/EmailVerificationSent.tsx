@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,33 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 export default function EmailVerificationSent() {
   const [email, setEmail] = useState('');
   const [isResending, setIsResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0); // seconds remaining
+  const [resendCount, setResendCount] = useState(0);
   const { toast } = useToast();
+
+  const startCooldown = useCallback((seconds: number) => {
+    setCooldown(seconds);
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleResendVerification = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +61,16 @@ export default function EmailVerificationSent() {
         description: response.message || 'Verification email has been resent. Please check your inbox.',
       });
       setEmail('');
+      const newCount = resendCount + 1;
+      setResendCount(newCount);
+      // 1st resend: no cooldown, 2nd: 5 min, 3rd+: 15 min
+      if (newCount === 1) {
+        // no cooldown on first resend
+      } else if (newCount === 2) {
+        startCooldown(5 * 60);
+      } else {
+        startCooldown(15 * 60);
+      }
     } catch (error: any) {
       toast({
         title: 'Failed to Resend',
@@ -115,12 +151,17 @@ export default function EmailVerificationSent() {
                   type="submit"
                   className="w-full" 
                   variant="outline"
-                  disabled={isResending}
+                  disabled={isResending || cooldown > 0}
                 >
                   {isResending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Resending...
+                    </>
+                  ) : cooldown > 0 ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Resend available in {formatTime(cooldown)}
                     </>
                   ) : (
                     <>
@@ -129,6 +170,19 @@ export default function EmailVerificationSent() {
                     </>
                   )}
                 </Button>
+                {cooldown > 0 && (
+                  <div className="mt-2">
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-1000 ease-linear"
+                        style={{ width: `${(cooldown / (resendCount <= 2 ? 5 * 60 : 15 * 60)) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 text-center">
+                      {resendCount <= 2 ? 'Next resend available in 5 minutes' : 'Next resend available in 15 minutes'}
+                    </p>
+                  </div>
+                )}
               </form>
             </div>
 
