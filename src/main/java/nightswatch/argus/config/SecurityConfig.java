@@ -66,6 +66,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 // Allow WebSocket handshake
                 .requestMatchers("/ws/**").permitAll()
+                // Auth endpoints that require a valid JWT
+                .requestMatchers("/api/v1/auth/change-password", "/api/v1/auth/validate").authenticated()
                 // Public endpoints for auth
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 // Require authentication for everything else
