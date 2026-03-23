@@ -44,4 +44,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     
     @Query("SELECT a FROM Alert a WHERE a.server.owner.id = :userId ORDER BY a.triggeredAt DESC")
     List<Alert> findByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT a FROM Alert a WHERE a.server.owner.id = :userId AND a.status = :status ORDER BY a.triggeredAt DESC")
+    List<Alert> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") Alert.AlertStatus status);
 }
