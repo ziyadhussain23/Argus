@@ -1,20 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Activity, Loader2, ArrowLeft, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
 
+const forgotPasswordSchema = z.object({
+    email: z.string().email('Please enter a valid email address'),
+});
+type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
+
 export default function ForgotPassword() {
-    const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const { toast } = useToast();
+
+    const form = useForm<ForgotPasswordFormValues>({
+        resolver: zodResolver(forgotPasswordSchema),
+        defaultValues: { email: '' },
+    });
 
     useEffect(() => {
         if (cooldown <= 0) return;
@@ -22,13 +34,12 @@ export default function ForgotPassword() {
         return () => clearTimeout(timer);
     }, [cooldown]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (values: ForgotPasswordFormValues) => {
         if (cooldown > 0) return;
         setIsLoading(true);
 
         try {
-            const response = await authApi.forgotPassword(email);
+            const response = await authApi.forgotPassword(values.email);
             if (response.success) {
                 setIsSubmitted(true);
                 setCooldown(60);
@@ -77,34 +88,42 @@ export default function ForgotPassword() {
 
                 <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
                     {!isSubmitted ? (
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="name@example.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        className="pl-9"
-                                    />
-                                </div>
-                            </div>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email address</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type="email"
+                                                        placeholder="name@example.com"
+                                                        className="pl-9"
+                                                        {...field}
+                                                    />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                            <Button type="submit" className="w-full" disabled={isLoading}>
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Sending link...
-                                    </>
-                                ) : (
-                                    'Reset password'
-                                )}
-                            </Button>
-                        </form>
+                                <Button type="submit" className="w-full" disabled={isLoading}>
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Sending link...
+                                        </>
+                                    ) : (
+                                        'Reset password'
+                                    )}
+                                </Button>
+                            </form>
+                        </Form>
                     ) : (
                         <div className="text-center space-y-4">
                             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
