@@ -3,6 +3,7 @@ package nightswatch.argus.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import nightswatch.argus.dto.request.ServerRegistrationRequest;
+import nightswatch.argus.dto.request.ServerUpdateRequest;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.dto.response.MetricResponse;
 import nightswatch.argus.dto.response.ServerResponse;
@@ -60,6 +61,16 @@ public class ServerController {
         
         serverService.deleteServer(id, user);
         return ResponseEntity.ok(ApiResponse.success("Server deleted successfully", null));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<ServerResponse>> updateServer(
+            @PathVariable Long id,
+            @RequestBody ServerUpdateRequest request,
+            @AuthenticationPrincipal User user) {
+
+        ServerResponse response = serverService.updateServer(id, request, user);
+        return ResponseEntity.ok(ApiResponse.success("Server updated successfully", response));
     }
 
     @PostMapping("/{id}/regenerate-key")
