@@ -24,4 +24,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     
     @Query("SELECT n FROM Notification n WHERE n.status = 'FAILED' AND n.retryCount < :maxRetries")
     List<Notification> findFailedNotificationsForRetry(@Param("maxRetries") int maxRetries);
+
+    void deleteByRecipientId(Long recipientId);
 }
