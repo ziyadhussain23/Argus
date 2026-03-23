@@ -12,6 +12,8 @@ import nightswatch.argus.service.NotificationPreferenceService;
 import nightswatch.argus.service.PhoneVerificationService;
 import nightswatch.argus.service.SmsRateLimiter;
 import nightswatch.argus.service.SmsService;
+import nightswatch.argus.service.UserService;
+import nightswatch.argus.repository.SmsLogRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +31,8 @@ public class NotificationPreferenceController {
     private final PhoneVerificationService phoneVerificationService;
     private final SmsService smsService;
     private final SmsRateLimiter smsRateLimiter;
+    private final UserService userService;
+    private final SmsLogRepository smsLogRepository;
 
     /**
      * Get current user's notification preferences.
@@ -166,6 +170,23 @@ public class NotificationPreferenceController {
         );
         
         return ResponseEntity.ok(ApiResponse.success("SMS service status", status));
+    }
+
+    /**
+     * Get SMS logs for current user.
+     */
+    @GetMapping("/sms/logs")
+    public ResponseEntity<ApiResponse<java.util.List<nightswatch.argus.dto.response.SmsLogResponse>>> getSmsLogs(
+            @AuthenticationPrincipal User user) {
+
+        java.util.List<nightswatch.argus.entity.SmsLog> logs =
+                smsLogRepository.findByUserOrderByCreatedAtDesc(user);
+
+        java.util.List<nightswatch.argus.dto.response.SmsLogResponse> response = logs.stream()
+                .map(nightswatch.argus.dto.response.SmsLogResponse::fromEntity)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success("SMS logs retrieved", response));
     }
 
     /**

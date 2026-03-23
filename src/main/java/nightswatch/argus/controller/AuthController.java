@@ -133,4 +133,22 @@ public class AuthController {
 
         return ResponseEntity.ok(ApiResponse.success("Account deleted successfully", "DELETED"));
     }
+
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<AuthResponse.UserResponse>> getProfile(
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new BadRequestException("Authentication required");
+        }
+
+        User fullUser = userService.findById(user.getId());
+        AuthResponse.UserResponse profile = AuthResponse.UserResponse.builder()
+                .id(fullUser.getId())
+                .username(fullUser.getUsername())
+                .email(fullUser.getEmail())
+                .role(fullUser.getRole().name())
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success("Profile retrieved", profile));
+    }
 }

@@ -1,4 +1,5 @@
-import { ReactNode, useState, useEffect, useCallback } from 'react';
+import { ReactNode, useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Button } from '../ui/button';
 import { Menu } from 'lucide-react';
@@ -7,6 +8,14 @@ import { useKeepWebSocketAlive } from '@/hooks/use-realtime';
 import { SearchCommand } from '@/components/SearchCommand';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -17,6 +26,49 @@ export function MainLayout({ children }: MainLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(!isMobile);
   const [manualToggle, setManualToggle] = useState(false);
   const { toast } = useToast();
+  const location = useLocation();
+
+  const routeLabels: Record<string, string> = {
+    '/dashboard': 'Dashboard',
+    '/servers': 'Servers',
+    '/servers/new': 'Add Server',
+    '/servers/import': 'Bulk Import',
+    '/alerts': 'Alerts',
+    '/rules': 'Alert Rules',
+    '/history': 'History',
+    '/reports': 'Reports',
+    '/settings': 'Settings',
+    '/about': 'About',
+    '/faq': 'FAQ',
+    '/help': 'Help & Support',
+  };
+
+  const breadcrumbs = useMemo(() => {
+    const path = location.pathname;
+    const crumbs: { label: string; path?: string }[] = [{ label: 'Dashboard', path: '/dashboard' }];
+
+    if (path === '/dashboard') return crumbs;
+
+    // e.g. /servers/123/edit or /servers/123
+    const segments = path.split('/').filter(Boolean);
+    let accumulated = '';
+    for (let i = 0; i < segments.length; i++) {
+      accumulated += '/' + segments[i];
+      const label = routeLabels[accumulated];
+      if (label) {
+        crumbs.push(i === segments.length - 1 ? { label } : { label, path: accumulated });
+      } else if (/^\d+$/.test(segments[i])) {
+        // numeric ID like /servers/123
+        const parentLabel = routeLabels['/' + segments[i - 1]] || segments[i - 1];
+        crumbs.push(i === segments.length - 1
+          ? { label: `${parentLabel} Detail` }
+          : { label: `${parentLabel} Detail`, path: accumulated });
+      } else if (segments[i] === 'edit') {
+        crumbs.push({ label: 'Edit' });
+      }
+    }
+    return crumbs;
+  }, [location.pathname]);
 
   // Keep WebSocket alive across all page navigations
   useKeepWebSocketAlive(true);
@@ -109,6 +161,26 @@ export function MainLayout({ children }: MainLayoutProps) {
         isSidebarOpen ? "pl-64" : "pl-0"
       )}>
         <div className="p-8">
+          {breadcrumbs.length > 1 && (
+            <Breadcrumb className="mb-4">
+              <BreadcrumbList>
+                {breadcrumbs.map((crumb, i) => (
+                  <Fragment key={i}>
+                    {i > 0 && <BreadcrumbSeparator />}
+                    <BreadcrumbItem>
+                      {crumb.path && i < breadcrumbs.length - 1 ? (
+                        <BreadcrumbLink asChild>
+                          <Link to={crumb.path}>{crumb.label}</Link>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
+                  </Fragment>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
           {children}
         </div>
       </main>

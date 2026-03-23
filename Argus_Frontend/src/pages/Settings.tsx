@@ -27,11 +27,15 @@ import {
   EyeOff,
   Smartphone,
   MessageSquare,
-  Send
+  Send,
+  User as UserIcon,
 } from 'lucide-react';
-import { getApiBaseUrl, setApiBaseUrl, authApi, notificationsApi } from '@/lib/api';
+import { getApiBaseUrl, setApiBaseUrl, authApi, notificationsApi, profileApi, type SmsUsageStats, type SmsLogEntry, type UserProfile } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function Settings() {
   const [apiUrl, setApiUrl] = useState('');
@@ -57,6 +61,11 @@ export default function Settings() {
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
+  const [smsUsage, setSmsUsage] = useState<SmsUsageStats | null>(null);
+  const [smsServiceStatus, setSmsServiceStatus] = useState<{ available: boolean; message: string } | null>(null);
+  const [smsLogs, setSmsLogs] = useState<SmsLogEntry[]>([]);
+  const [isLoadingSmsData, setIsLoadingSmsData] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const { toast } = useToast();
   const { user, logout } = useAuth();
 
@@ -79,7 +88,36 @@ export default function Settings() {
     };
 
     loadPreferences();
+    loadSmsData();
+    loadProfile();
   }, []);
+
+  const loadProfile = async () => {
+    try {
+      const res = await profileApi.get();
+      if (res.data) setProfile(res.data);
+    } catch {
+      // Profile is optional, use context user as fallback
+    }
+  };
+
+  const loadSmsData = async () => {
+    setIsLoadingSmsData(true);
+    try {
+      const [usageRes, statusRes, logsRes] = await Promise.all([
+        notificationsApi.getSmsUsage().catch(() => null),
+        notificationsApi.getSmsStatus().catch(() => null),
+        notificationsApi.getSmsLogs().catch(() => null),
+      ]);
+      if (usageRes?.data) setSmsUsage(usageRes.data);
+      if (statusRes?.data) setSmsServiceStatus(statusRes.data);
+      if (logsRes?.data) setSmsLogs(logsRes.data);
+    } catch {
+      // SMS data is optional
+    } finally {
+      setIsLoadingSmsData(false);
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword) {
@@ -416,7 +454,7 @@ export default function Settings() {
           <div className="rounded-xl border border-border bg-card p-6 space-y-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <SettingsIcon className="h-5 w-5 text-primary" />
+                <UserIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <h2 className="font-display text-lg font-semibold text-foreground">
@@ -428,18 +466,33 @@ export default function Settings() {
               </div>
             </div>
 
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+              <Avatar className="h-16 w-16">
+                <AvatarFallback className="bg-primary/20 text-primary text-xl font-bold">
+                  {(profile?.username || user?.username || 'U').slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-lg font-semibold text-foreground">{profile?.username || user?.username || 'N/A'}</p>
+                <p className="text-sm text-muted-foreground">{profile?.email || user?.email || 'N/A'}</p>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary mt-1">
+                  {profile?.role || user?.role || 'USER'}
+                </span>
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="flex justify-between py-2 border-b border-border">
                 <span className="text-muted-foreground">Username</span>
-                <span className="font-medium text-foreground">{user?.username || 'N/A'}</span>
+                <span className="font-medium text-foreground">{profile?.username || user?.username || 'N/A'}</span>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
                 <span className="text-muted-foreground">Email</span>
-                <span className="font-medium text-foreground">{user?.email || 'N/A'}</span>
+                <span className="font-medium text-foreground">{profile?.email || user?.email || 'N/A'}</span>
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-muted-foreground">Role</span>
-                <span className="font-medium text-foreground">{user?.role || 'N/A'}</span>
+                <span className="font-medium text-foreground">{profile?.role || user?.role || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -617,6 +670,88 @@ export default function Settings() {
             </div>
           </div>
         </div>
+
+        {/* SMS Dashboard */}
+        {smsAvailable && (
+          <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <MessageSquare className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-semibold text-foreground">SMS Dashboard</h2>
+                <p className="text-sm text-muted-foreground">
+                  {smsServiceStatus ? smsServiceStatus.message : 'SMS usage, quota, and delivery history'}
+                </p>
+              </div>
+            </div>
+
+            {/* SMS Quota */}
+            {smsUsage && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Hourly Quota</span>
+                    <span className="font-medium">{smsUsage.hourlyUsed} / {smsUsage.hourlyLimit}</span>
+                  </div>
+                  <Progress value={smsUsage.hourlyLimit > 0 ? (smsUsage.hourlyUsed / smsUsage.hourlyLimit) * 100 : 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground">{smsUsage.hourlyRemaining} remaining this hour</p>
+                </div>
+                <div className="space-y-2 rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Daily Quota</span>
+                    <span className="font-medium">{smsUsage.dailyUsed} / {smsUsage.dailyLimit}</span>
+                  </div>
+                  <Progress value={smsUsage.dailyLimit > 0 ? (smsUsage.dailyUsed / smsUsage.dailyLimit) * 100 : 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground">{smsUsage.dailyRemaining} remaining today</p>
+                </div>
+              </div>
+            )}
+
+            {/* SMS Logs */}
+            {smsLogs.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-foreground">Recent SMS Activity</h3>
+                <ScrollArea className="h-64 rounded-lg border border-border">
+                  <div className="p-4 space-y-3">
+                    {smsLogs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
+                        <div className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                          log.status === 'DELIVERED' ? 'bg-green-500' :
+                          log.status === 'SENT' ? 'bg-blue-500' :
+                          log.status === 'FAILED' ? 'bg-red-500' :
+                          'bg-yellow-500'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-foreground truncate">{log.phoneNumber}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              log.status === 'DELIVERED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                              log.status === 'SENT' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                              log.status === 'FAILED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                              'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                            }`}>
+                              {log.status}
+                            </span>
+                          </div>
+                          {log.messagePreview && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">{log.messagePreview}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(log.createdAt).toLocaleString()}
+                          </p>
+                          {log.errorMessage && (
+                            <p className="text-xs text-destructive mt-1">{log.errorMessage}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Danger Zone */}
         <div className="rounded-xl border border-destructive/30 bg-card p-6 space-y-6">

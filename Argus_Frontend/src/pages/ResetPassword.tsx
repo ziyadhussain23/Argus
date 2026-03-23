@@ -1,20 +1,30 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { Activity, Loader2, Eye, EyeOff, Lock, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
 
+const resetPasswordSchema = z.object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+});
+type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+
 export default function ResetPassword() {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
 
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -22,17 +32,12 @@ export default function ResetPassword() {
     const navigate = useNavigate();
     const { toast } = useToast();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const form = useForm<ResetPasswordFormValues>({
+        resolver: zodResolver(resetPasswordSchema),
+        defaultValues: { password: '', confirmPassword: '' },
+    });
 
-        if (password !== confirmPassword) {
-            toast({
-                title: 'Passwords do not match',
-                variant: 'destructive',
-            });
-            return;
-        }
-
+    const handleSubmit = async (values: ResetPasswordFormValues) => {
         if (!token) {
             toast({
                 title: 'Missing token',
@@ -45,7 +50,7 @@ export default function ResetPassword() {
         setIsLoading(true);
 
         try {
-            const response = await authApi.resetPassword(token, password);
+            const response = await authApi.resetPassword(token, values.password);
             if (response.success) {
                 setIsSuccess(true);
                 toast({
@@ -122,59 +127,71 @@ export default function ResetPassword() {
                             </Button>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
-                                <Label htmlFor="password">New Password</Label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        id="password"
-                                        type={showPassword ? 'text' : 'password'}
-                                        placeholder="Minimum 8 characters"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        minLength={8}
-                                        className="pl-9 pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
-                                    >
-                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </button>
-                                </div>
-                            </div>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="password"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>New Password</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type={showPassword ? 'text' : 'password'}
+                                                        placeholder="Minimum 8 characters"
+                                                        className="pl-9 pr-10"
+                                                        {...field}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowPassword(!showPassword)}
+                                                        className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                    </button>
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                            <div className="space-y-2">
-                                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        id="confirmPassword"
-                                        type={showPassword ? 'text' : 'password'}
-                                        placeholder="Confirm new password"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                        required
-                                        minLength={8}
-                                        className="pl-9"
-                                    />
-                                </div>
-                            </div>
+                                <FormField
+                                    control={form.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Confirm Password</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        type={showPassword ? 'text' : 'password'}
+                                                        placeholder="Confirm new password"
+                                                        className="pl-9"
+                                                        {...field}
+                                                    />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                            <Button type="submit" className="w-full" disabled={isLoading}>
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Resetting password...
-                                    </>
-                                ) : (
-                                    'Reset password'
-                                )}
-                            </Button>
-                        </form>
+                                <Button type="submit" className="w-full" disabled={isLoading}>
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Resetting password...
+                                        </>
+                                    ) : (
+                                        'Reset password'
+                                    )}
+                                </Button>
+                            </form>
+                        </Form>
                     )}
                 </div>
             </motion.div>

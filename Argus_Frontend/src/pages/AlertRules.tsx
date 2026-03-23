@@ -295,6 +295,8 @@ export default function AlertRules() {
     }
   };
 
+  const [disableConfirmRuleId, setDisableConfirmRuleId] = useState<number | null>(null);
+
   const handleDeleteRule = async (ruleId: number) => {
     try {
       await alertRulesApi.delete(ruleId);
@@ -646,7 +648,13 @@ export default function AlertRules() {
                     <TableCell>
                       <Switch
                         checked={rule.isEnabled}
-                        onCheckedChange={(checked) => handleToggleRule(rule.id, checked)}
+                        onCheckedChange={(checked) => {
+                          if (!checked) {
+                            setDisableConfirmRuleId(rule.id);
+                          } else {
+                            handleToggleRule(rule.id, true);
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell>
@@ -846,6 +854,24 @@ export default function AlertRules() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Disable Rule Confirmation */}
+      <AlertDialog open={disableConfirmRuleId !== null} onOpenChange={(open) => { if (!open) setDisableConfirmRuleId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disable Alert Rule?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to disable <strong>"{rules.find(r => r.id === disableConfirmRuleId)?.name}"</strong>? You will stop receiving alerts for this rule until you re-enable it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (disableConfirmRuleId !== null) { handleToggleRule(disableConfirmRuleId, false); } setDisableConfirmRuleId(null); }}>
+              Disable Rule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

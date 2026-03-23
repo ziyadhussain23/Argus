@@ -15,6 +15,7 @@ import {
   Wifi,
   WifiOff,
   FileText,
+  User as UserIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useWebSocketStatus } from '@/hooks/use-realtime';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NavLink } from '@/components/NavLink';
 import {
   Tooltip,
   TooltipContent,
@@ -128,23 +131,19 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
             (item.path !== '/dashboard' && item.path !== '/settings' && location.pathname.startsWith(item.path + '/'));
 
           return (
-            <Link
+            <NavLink
               key={item.path}
               to={item.path}
               aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                isActive
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+              activeClassName="bg-primary/10 text-primary"
             >
               <item.icon className="h-5 w-5" />
               {item.label}
               {isActive && (
                 <div className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
               )}
-            </Link>
+            </NavLink>
           );
         })}
       </nav>
@@ -181,9 +180,11 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
       {/* User section */}
       <div className="border-t border-border p-4">
         <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-primary">
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
-          </div>
+          <Avatar className="h-9 w-9">
+            <AvatarFallback className="bg-primary/20 text-primary text-sm font-medium">
+              {user?.username?.slice(0, 2).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 overflow-hidden">
             <p className="truncate text-sm font-medium text-foreground">
               {user?.username || 'User'}

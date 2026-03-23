@@ -102,6 +102,35 @@ export interface ScheduledReport {
   nextRunAt?: string;
 }
 
+export interface SmsLogEntry {
+  id: number;
+  phoneNumber: string;
+  status: string;
+  messagePreview: string | null;
+  segmentsCount: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+}
+
+export interface SmsUsageStats {
+  hourlyUsed: number;
+  hourlyLimit: number;
+  dailyUsed: number;
+  dailyLimit: number;
+  hourlyRemaining: number;
+  dailyRemaining: number;
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+}
+
 // Auth helpers
 export const getToken = (): string | null => {
   return localStorage.getItem('argus_token');
@@ -352,9 +381,22 @@ export const notificationsApi = {
     method: 'POST',
   }),
 
-  getSmsUsage: () => apiRequest<{ sentLastHour: number; sentLast24Hours: number; sentLast30Days: number; hourlyLimit: number; dailyLimit: number; monthlyLimit: number }>('/notifications/sms/usage'),
+  getSmsUsage: () => apiRequest<SmsUsageStats>('/notifications/sms/usage'),
 
   getSmsStatus: () => apiRequest<{ available: boolean; message: string }>('/notifications/sms/status'),
+
+  getSmsLogs: () => apiRequest<SmsLogEntry[]>('/notifications/sms/logs'),
+};
+
+export const profileApi = {
+  get: () => apiRequest<UserProfile>('/auth/profile'),
+
+  validate: () => apiRequest<string>('/auth/validate'),
+};
+
+export const metricsApi = {
+  getAverage: (serverId: number, type: string, minutes: number = 60) =>
+    apiRequest<number>(`/metrics/server/${serverId}/average?type=${type}&minutes=${minutes}`),
 };
 
 export const reportsApi = {
