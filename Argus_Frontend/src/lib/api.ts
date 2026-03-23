@@ -75,6 +75,62 @@ export interface User {
   role: 'ADMIN' | 'USER';
 }
 
+export interface NotificationPreferences {
+  id: number;
+  emailEnabled: boolean;
+  smsEnabled: boolean;
+  smsForCriticalOnly: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: number | null;
+  quietHoursEnd: number | null;
+  phoneNumber: string | null;
+  phoneVerified: boolean;
+  smsAvailable: boolean;
+}
+
+export interface ScheduledReport {
+  id: number;
+  name: string;
+  format: 'pdf' | 'csv' | 'excel';
+  servers: number[];
+  metrics: string[];
+  timeframe: string;
+  frequency: 'none' | 'auto';
+  recipients: string;
+  enabled: boolean;
+  lastGeneratedAt?: string;
+  nextRunAt?: string;
+}
+
+export interface SmsLogEntry {
+  id: number;
+  phoneNumber: string;
+  status: string;
+  messagePreview: string | null;
+  segmentsCount: number | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  sentAt: string | null;
+  deliveredAt: string | null;
+}
+
+export interface SmsUsageStats {
+  hourlyUsed: number;
+  hourlyLimit: number;
+  dailyUsed: number;
+  dailyLimit: number;
+  hourlyRemaining: number;
+  dailyRemaining: number;
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+}
+
 // Auth helpers
 export const getToken = (): string | null => {
   return localStorage.getItem('argus_token');
@@ -187,6 +243,12 @@ export const authApi = {
       body: JSON.stringify({ currentPassword, newPassword }),
     });
   },
+
+  deleteAccount: async () => {
+    return apiRequest<string>('/auth/account', {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Servers API
@@ -281,4 +343,92 @@ export const alertRulesApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+};
+
+export const notificationsApi = {
+  getPreferences: () => apiRequest<NotificationPreferences>('/notifications/preferences'),
+
+  updatePreferences: (data: {
+    emailEnabled?: boolean;
+    smsEnabled?: boolean;
+    smsForCriticalOnly?: boolean;
+    quietHoursEnabled?: boolean;
+    quietHoursStart?: number;
+    quietHoursEnd?: number;
+  }) => apiRequest<NotificationPreferences>('/notifications/preferences', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+
+  updatePhoneNumber: (phoneNumber: string) => apiRequest<string>('/notifications/phone', {
+    method: 'PUT',
+    body: JSON.stringify({ phoneNumber }),
+  }),
+
+  removePhoneNumber: () => apiRequest<string>('/notifications/phone', {
+    method: 'DELETE',
+  }),
+
+  sendPhoneVerificationOtp: () => apiRequest<string>('/notifications/phone/verify/send', {
+    method: 'POST',
+  }),
+
+  verifyPhoneOtp: (otp: string) => apiRequest<string>(`/notifications/phone/verify?otp=${encodeURIComponent(otp)}`, {
+    method: 'POST',
+  }),
+
+  sendTestSms: () => apiRequest<string>('/notifications/sms/test', {
+    method: 'POST',
+  }),
+
+  getSmsUsage: () => apiRequest<SmsUsageStats>('/notifications/sms/usage'),
+
+  getSmsStatus: () => apiRequest<{ available: boolean; message: string }>('/notifications/sms/status'),
+
+  getSmsLogs: () => apiRequest<SmsLogEntry[]>('/notifications/sms/logs'),
+};
+
+export const profileApi = {
+  get: () => apiRequest<UserProfile>('/auth/profile'),
+
+  validate: () => apiRequest<string>('/auth/validate'),
+};
+
+export const metricsApi = {
+  getAverage: (serverId: number, type: string, minutes: number = 60) =>
+    apiRequest<number>(`/metrics/server/${serverId}/average?type=${type}&minutes=${minutes}`),
+};
+
+export const reportsApi = {
+  getAll: () => apiRequest<ScheduledReport[]>('/reports'),
+
+  create: (data: {
+    name: string;
+    format: 'pdf' | 'csv' | 'excel';
+    servers: number[];
+    metrics: string[];
+    timeframe: string;
+    frequency: 'none' | 'auto';
+    recipients: string;
+    enabled: boolean;
+  }) => apiRequest<ScheduledReport>('/reports', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  update: (id: number, data: {
+    name: string;
+    format: 'pdf' | 'csv' | 'excel';
+    servers: number[];
+    metrics: string[];
+    timeframe: string;
+    frequency: 'none' | 'auto';
+    recipients: string;
+    enabled: boolean;
+  }) => apiRequest<ScheduledReport>(`/reports/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+
+  delete: (id: number) => apiRequest<null>(`/reports/${id}`, { method: 'DELETE' }),
 };
