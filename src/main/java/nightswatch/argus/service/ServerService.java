@@ -3,11 +3,13 @@ package nightswatch.argus.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nightswatch.argus.dto.request.ServerRegistrationRequest;
+import nightswatch.argus.dto.request.ServerUpdateRequest;
 import nightswatch.argus.dto.response.ServerResponse;
 import nightswatch.argus.entity.Alert;
 import nightswatch.argus.entity.AlertRule;
 import nightswatch.argus.entity.Server;
 import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.BadRequestException;
 import nightswatch.argus.repository.AlertRepository;
 import nightswatch.argus.repository.ServerRepository;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -35,6 +37,7 @@ public class ServerService {
                 .name(request.getName())
                 .hostAddress(request.getHostAddress())
                 .operatingSystem(request.getOperatingSystem())
+            .description(request.getDescription())
                 .agentKey(agentKey)
                 .owner(owner)
                 .status(Server.ServerStatus.UNKNOWN)
@@ -111,6 +114,40 @@ public class ServerService {
         
         log.info("Regenerated agent key for server: {}", server.getName());
         return newKey;
+    }
+
+    @Transactional
+    public ServerResponse updateServer(Long id, ServerUpdateRequest request, User owner) {
+        Server server = serverRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Server not found"));
+
+        if (!server.getOwner().getId().equals(owner.getId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+        if (request.getName() != null) {
+            String name = request.getName().trim();
+            if (name.isEmpty()) {
+                throw new BadRequestException("Server name cannot be empty");
+            }
+            server.setName(name);
+        }
+
+        if (request.getHostAddress() != null) {
+            String hostAddress = request.getHostAddress().trim();
+            if (hostAddress.isEmpty()) {
+                throw new BadRequestException("Host address cannot be empty");
+            }
+            server.setHostAddress(hostAddress);
+        }
+
+        if (request.getDescription() != null) {
+            server.setDescription(request.getDescription().trim());
+        }
+
+        serverRepository.save(server);
+        publishServerUpdate(server);
+        return toResponseWithAlertCount(server);
     }
 
     private String generateAgentKey() {
