@@ -70,4 +70,6 @@ public interface SmsLogRepository extends JpaRepository<SmsLog, Long> {
         @Param("start") LocalDateTime start, 
         @Param("end") LocalDateTime end
     );
+
+    void deleteByUserId(Long userId);
 }
