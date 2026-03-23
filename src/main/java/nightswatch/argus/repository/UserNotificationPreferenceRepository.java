@@ -27,4 +27,6 @@ public interface UserNotificationPreferenceRepository extends JpaRepository<User
      * Check if preferences exist for a user.
      */
     boolean existsByUserId(Long userId);
+
+    void deleteByUserId(Long userId);
 }
