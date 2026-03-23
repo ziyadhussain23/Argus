@@ -31,6 +31,9 @@ public class Server {
     @Column(name = "operating_system")
     private String operatingSystem;
 
+    @Column(length = 500)
+    private String description;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ServerStatus status;
