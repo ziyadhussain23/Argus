@@ -3,13 +3,19 @@ package nightswatch.argus.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import nightswatch.argus.dto.request.ChangePasswordRequest;
 import nightswatch.argus.dto.request.LoginRequest;
 import nightswatch.argus.dto.request.RegisterRequest;
+import nightswatch.argus.dto.request.VerifyTokenRequest;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.dto.response.AuthResponse;
+import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.BadRequestException;
+import nightswatch.argus.service.JwtService;
 import nightswatch.argus.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final JwtService jwtService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
@@ -40,8 +47,18 @@ public class AuthController {
     }
 
     @GetMapping("/validate")
-    public ResponseEntity<ApiResponse<String>> validateToken() {
-        // If this endpoint is reached, the token is valid (JWT filter already validated it)
+    public ResponseEntity<ApiResponse<String>> validateToken(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new BadRequestException("Invalid or missing token");
+        }
+        return ResponseEntity.ok(ApiResponse.success("Token is valid", "OK"));
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<ApiResponse<String>> verifyToken(@Valid @RequestBody VerifyTokenRequest request) {
+        if (!jwtService.isTokenValid(request.getToken())) {
+            throw new BadRequestException("Invalid token");
+        }
         return ResponseEntity.ok(ApiResponse.success("Token is valid", "OK"));
     }
     
@@ -90,5 +107,48 @@ public class AuthController {
         userService.resetPassword(token, newPassword);
         
         return ResponseEntity.ok(ApiResponse.success("Password reset successfully. You can now login with your new password.", "RESET"));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new BadRequestException("Authentication required");
+        }
+
+        userService.changePassword(user, request.getCurrentPassword(), request.getNewPassword());
+
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", "CHANGED"));
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<ApiResponse<String>> deleteAccount(
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new BadRequestException("Authentication required");
+        }
+
+        userService.deleteAccount(user);
+
+        return ResponseEntity.ok(ApiResponse.success("Account deleted successfully", "DELETED"));
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<ApiResponse<AuthResponse.UserResponse>> getProfile(
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            throw new BadRequestException("Authentication required");
+        }
+
+        User fullUser = userService.findById(user.getId());
+        AuthResponse.UserResponse profile = AuthResponse.UserResponse.builder()
+                .id(fullUser.getId())
+                .username(fullUser.getUsername())
+                .email(fullUser.getEmail())
+                .role(fullUser.getRole().name())
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success("Profile retrieved", profile));
     }
 }
