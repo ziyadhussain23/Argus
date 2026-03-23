@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -25,11 +25,21 @@ import {
   BarChart3,
   TrendingUp,
   AlertTriangle,
-  ChevronRight,
   Palette,
+  Pencil,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
-import { serversApi, alertsApi, type Server as ServerType, type Alert, type Metric } from '@/lib/api';
+import { serversApi, alertsApi, metricsApi, getApiBaseUrl, type Server as ServerType, type Alert, type Metric } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,15 +113,20 @@ export default function ServerDetail() {
   const [memoryChartType, setMemoryChartType] = useState<ChartType>('line');
   const [cpuChartColor, setCpuChartColor] = useState<string>('');
   const [memoryChartColor, setMemoryChartColor] = useState<string>('');
+  const [averages, setAverages] = useState<{ cpu: number | null; memory: number | null; disk: number | null }>({ cpu: null, memory: null, disk: null });
+  const [avgMinutes, setAvgMinutes] = useState<number>(60);
+  const [showAverages, setShowAverages] = useState(true);
+  const [isLoadingAvg, setIsLoadingAvg] = useState(false);
+  const [avgBarColor, setAvgBarColor] = useState<string>('');
 
-  const serverId = id ? Number(id) : null;
+  const serverId = id && !isNaN(Number(id)) ? Number(id) : null;
 
   const realtimeSubscriptions = useMemo<RealtimeSubscription[]>(() => {
     if (!serverId) return [];
 
     return [
       {
-        topic: `/topic/metrics/server/${serverId}`,
+        topic: `/topic/servers/${serverId}/metrics`,
         onMessage: (incoming: Metric[]) => {
           setMetrics((prev) => {
             const next = { ...prev };
@@ -203,9 +218,36 @@ export default function ServerDetail() {
     }
   };
 
+  const fetchAverages = useCallback(async (minutes: number) => {
+    if (!serverId || !showAverages) return;
+    setIsLoadingAvg(true);
+    try {
+      const [cpuAvg, memAvg, diskAvg] = await Promise.all([
+        metricsApi.getAverage(serverId, 'CPU_USAGE', minutes).catch(() => null),
+        metricsApi.getAverage(serverId, 'MEMORY_USAGE', minutes).catch(() => null),
+        metricsApi.getAverage(serverId, 'DISK_USAGE', minutes).catch(() => null),
+      ]);
+      setAverages({
+        cpu: cpuAvg?.data ?? null,
+        memory: memAvg?.data ?? null,
+        disk: diskAvg?.data ?? null,
+      });
+    } catch {
+      // averages are optional
+    } finally {
+      setIsLoadingAvg(false);
+    }
+  }, [serverId, showAverages]);
+
   useEffect(() => {
     fetchData();
   }, [id]);
+
+  useEffect(() => {
+    if (showAverages) {
+      fetchAverages(avgMinutes);
+    }
+  }, [avgMinutes, showAverages, fetchAverages]);
 
   const copyAgentKey = () => {
     if (server?.agentKey) {
@@ -244,10 +286,10 @@ export default function ServerDetail() {
     }
   };
 
-  const handleAcknowledge = async (alertId: number) => {
+  const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
       await alertsApi.acknowledge(alertId);
-      setAlerts(alerts.map(a =>
+      setAlerts(prev => prev.map(a =>
         a.id === alertId ? { ...a, status: 'ACKNOWLEDGED' as const } : a
       ));
       toast({ title: 'Alert acknowledged' });
@@ -259,7 +301,7 @@ export default function ServerDetail() {
   const handleResolve = async (alertId: number) => {
     try {
       await alertsApi.resolve(alertId);
-      setAlerts(alerts.filter(a => a.id !== alertId));
+      setAlerts(prev => prev.filter(a => a.id !== alertId));
       toast({ title: 'Alert resolved' });
     } catch (error) {
       toast({ title: 'Failed to resolve alert', variant: 'destructive' });
@@ -330,7 +372,13 @@ export default function ServerDetail() {
     const { title, data, chartType: ct, setChartType: setCt, chartColor, setChartColor: setCc, defaultColor } = opts;
     if (data.length === 0) return null;
     const color = chartColor || defaultColor;
-    const fillColor = chartColor ? chartColor.replace(')', ' / 0.3)') : defaultColor.replace(')', ' / 0.3)');
+    // Replace only the LAST ')' to safely handle hsl(var(--foo)) patterns
+    const makeAlpha = (c: string) => {
+      const idx = c.lastIndexOf(')');
+      if (idx === -1) return c;
+      return c.slice(0, idx) + ' / 0.3)' + c.slice(idx + 1);
+    };
+    const fillColor = chartColor ? makeAlpha(chartColor) : makeAlpha(defaultColor);
     const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' };
     const axisStroke = 'hsl(var(--muted-foreground))';
     const gridStroke = 'hsl(var(--border))';
@@ -437,13 +485,18 @@ export default function ServerDetail() {
             </div>
           </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/servers/${id}/edit`)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete Server?</AlertDialogTitle>
@@ -458,6 +511,7 @@ export default function ServerDetail() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          </div>
         </div>
 
         {/* Installation Instructions */}
@@ -475,17 +529,18 @@ export default function ServerDetail() {
             <CardContent>
               <div className="relative rounded-md bg-muted p-4 pr-12 font-mono text-sm max-w-full overflow-x-auto">
                 <p className="whitespace-pre-wrap break-all">
-                  curl -sSL https://raw.githubusercontent.com/nightswatch/Argus/main/agent/argus-agent.sh | ARGUS_SERVER_URL=http://localhost:8080 AGENT_KEY={server.agentKey} bash
+                  curl -sSL https://raw.githubusercontent.com/nightswatch/Argus/main/agent/argus-agent.sh | ARGUS_SERVER_URL={getApiBaseUrl().replace('/api/v1', '')} AGENT_KEY={server.agentKey} bash
                 </p>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="absolute right-2 top-2 h-8 w-8 bg-background/50 hover:bg-background"
                   onClick={() => {
-                    const command = `curl -sSL https://raw.githubusercontent.com/nightswatch/Argus/main/agent/argus-agent.sh | ARGUS_SERVER_URL=http://localhost:8080 AGENT_KEY=${server.agentKey} bash`;
+                    const command = `curl -sSL https://raw.githubusercontent.com/nightswatch/Argus/main/agent/argus-agent.sh | ARGUS_SERVER_URL=${getApiBaseUrl().replace('/api/v1', '')} AGENT_KEY=${server.agentKey} bash`;
                     navigator.clipboard.writeText(command);
                     toast({ title: 'Command copied!' });
                   }}
+                  aria-label="Copy install command"
                 >
                   <Copy className="h-4 w-4" />
                 </Button>
@@ -533,335 +588,133 @@ export default function ServerDetail() {
           />
         </div>
 
-        {/* CPU Chart */}
-        {cpuChartData.length > 0 && (
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-foreground">
-                CPU Usage Over Time
-              </h3>
-              <div className="flex gap-1 rounded-lg border border-border p-1 bg-muted/50">
-                <Button
-                  variant={cpuChartType === 'line' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setCpuChartType('line')}
-                  className="h-7 px-2 gap-1 text-xs"
+        {/* Average Metrics */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-lg font-semibold text-foreground">
+              Metric Averages
+            </h3>
+            <div className="flex items-center gap-3">
+              {showAverages && (
+                <Select
+                  value={String(avgMinutes)}
+                  onValueChange={(v) => setAvgMinutes(Number(v))}
                 >
-                  <LineChartIcon className="h-3 w-3" />
-                  Line
-                </Button>
-                <Button
-                  variant={cpuChartType === 'area' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setCpuChartType('area')}
-                  className="h-7 px-2 gap-1 text-xs"
-                >
-                  <TrendingUp className="h-3 w-3" />
-                  Area
-                </Button>
-                <Button
-                  variant={cpuChartType === 'bar' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setCpuChartType('bar')}
-                  className="h-7 px-2 gap-1 text-xs"
-                >
-                  <BarChart3 className="h-3 w-3" />
-                  Bar
-                </Button>
-
+                  <SelectTrigger className="w-[140px] h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">Last 15 min</SelectItem>
+                    <SelectItem value="30">Last 30 min</SelectItem>
+                    <SelectItem value="60">Last 1 hour</SelectItem>
+                    <SelectItem value="120">Last 2 hours</SelectItem>
+                    <SelectItem value="360">Last 6 hours</SelectItem>
+                    <SelectItem value="1440">Last 24 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {showAverages && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 rounded-md p-0"
-                      style={cpuChartColor ? { color: cpuChartColor } : {}}
-                    >
+                    <Button variant="outline" size="sm" className="h-8 w-8 p-0" style={avgBarColor ? { color: avgBarColor } : {}}>
                       <Palette className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Chart Color</DropdownMenuLabel>
+                    <DropdownMenuLabel>Bar Color</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <div className="grid grid-cols-4 gap-2 p-2">
-                      {CHART_COLORS.map((color) => (
-                        <DropdownMenuItem
-                          key={color.name}
-                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted"
-                          onClick={() => setCpuChartColor(color.value)}
-                          title={color.name}
-                        >
-                          {color.value ? (
-                            <div
-                              className="h-6 w-6 rounded-full border border-border shadow-sm"
-                              style={{ backgroundColor: color.value }}
-                            />
+                      {CHART_COLORS.map((c) => (
+                        <DropdownMenuItem key={c.name} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted" onClick={() => setAvgBarColor(c.value)} title={c.name}>
+                          {c.value ? (
+                            <div className="h-6 w-6 rounded-full border border-border shadow-sm" style={{ backgroundColor: c.value }} />
                           ) : (
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">
-                              /
-                            </div>
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">/</div>
                           )}
                         </DropdownMenuItem>
                       ))}
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-            </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                {cpuChartType === 'line' ? (
-                  <LineChart data={cpuChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="time"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke={cpuChartColor || "hsl(var(--primary))"}
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                ) : cpuChartType === 'area' ? (
-                  <AreaChart data={cpuChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="time"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke={cpuChartColor || "hsl(var(--primary))"}
-                      fill={cpuChartColor ? `${cpuChartColor.replace(')', ' / 0.3)')}` : "hsl(var(--primary) / 0.3)"}
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={cpuChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="time"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar
-                      dataKey="value"
-                      fill={cpuChartColor || "hsl(var(--primary))"}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAverages(!showAverages)}
+                className="h-8 text-sm"
+              >
+                {showAverages ? 'Hide' : 'Show'}
+              </Button>
             </div>
           </div>
-        )}
+          {showAverages && (
+            isLoadingAvg ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading averages...
+              </div>
+            ) : (averages.cpu !== null || averages.memory !== null || averages.disk !== null) ? (
+              <div className="space-y-4">
+                {averages.cpu !== null && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Cpu className="h-4 w-4" /> CPU Average
+                      </span>
+                      <span className="font-medium">{averages.cpu.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={averages.cpu} className="h-2" style={avgBarColor ? { '--progress-color': avgBarColor } as React.CSSProperties : undefined} />
+                  </div>
+                )}
+                {averages.memory !== null && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <MemoryStick className="h-4 w-4" /> Memory Average
+                      </span>
+                      <span className="font-medium">{averages.memory.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={averages.memory} className="h-2" style={avgBarColor ? { '--progress-color': avgBarColor } as React.CSSProperties : undefined} />
+                  </div>
+                )}
+                {averages.disk !== null && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <HardDrive className="h-4 w-4" /> Disk Average
+                      </span>
+                      <span className="font-medium">{averages.disk.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={averages.disk} className="h-2" style={avgBarColor ? { '--progress-color': avgBarColor } as React.CSSProperties : undefined} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">No average data available for this time window.</p>
+            )
+          )}
+        </div>
+
+        {/* CPU Chart */}
+        {renderMetricChart({
+          title: 'CPU Usage Over Time',
+          data: cpuChartData,
+          chartType: cpuChartType,
+          setChartType: setCpuChartType,
+          chartColor: cpuChartColor,
+          setChartColor: setCpuChartColor,
+          defaultColor: 'hsl(var(--primary))',
+        })}
 
         {/* Memory Chart */}
-        {memoryChartData.length > 0 && (
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-semibold text-foreground">
-                Memory Usage Over Time
-              </h3>
-              <div className="flex gap-1 rounded-lg border border-border p-1 bg-muted/50">
-                <Button
-                  variant={memoryChartType === 'line' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMemoryChartType('line')}
-                  className="h-7 px-2 gap-1 text-xs"
-                >
-                  <LineChartIcon className="h-3 w-3" />
-                  Line
-                </Button>
-                <Button
-                  variant={memoryChartType === 'area' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMemoryChartType('area')}
-                  className="h-7 px-2 gap-1 text-xs"
-                >
-                  <TrendingUp className="h-3 w-3" />
-                  Area
-                </Button>
-                <Button
-                  variant={memoryChartType === 'bar' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setMemoryChartType('bar')}
-                  className="h-7 px-2 gap-1 text-xs"
-                >
-                  <BarChart3 className="h-3 w-3" />
-                  Bar
-                </Button>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 w-7 rounded-md p-0"
-                      style={memoryChartColor ? { color: memoryChartColor } : {}}
-                    >
-                      <Palette className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Chart Color</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <div className="grid grid-cols-4 gap-2 p-2">
-                      {CHART_COLORS.map((color) => (
-                        <DropdownMenuItem
-                          key={color.name}
-                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted"
-                          onClick={() => setMemoryChartColor(color.value)}
-                          title={color.name}
-                        >
-                          {color.value ? (
-                            <div
-                              className="h-6 w-6 rounded-full border border-border shadow-sm"
-                              style={{ backgroundColor: color.value }}
-                            />
-                          ) : (
-                            <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">
-                              /
-                            </div>
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                {memoryChartType === 'line' ? (
-                  <LineChart data={memoryChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="time"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="value"
-                      stroke={memoryChartColor || "hsl(142 76% 36%)"}
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                ) : memoryChartType === 'area' ? (
-                  <AreaChart data={memoryChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="time"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="value"
-                      stroke={memoryChartColor || "hsl(142 76% 36%)"}
-                      fill={memoryChartColor ? `${memoryChartColor.replace(')', ' / 0.3)')}` : "hsl(142 76% 36% / 0.3)"}
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={memoryChartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="time"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                      domain={[0, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Bar
-                      dataKey="value"
-                      fill={memoryChartColor || "hsl(142 76% 36%)"}
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
+        {renderMetricChart({
+          title: 'Memory Usage Over Time',
+          data: memoryChartData,
+          chartType: memoryChartType,
+          setChartType: setMemoryChartType,
+          chartColor: memoryChartColor,
+          setChartColor: setMemoryChartColor,
+          defaultColor: 'hsl(142 76% 36%)',
+        })}
 
         {/* Disk & Memory Info */}
         <div className="grid gap-4 md:grid-cols-2">
@@ -1002,6 +855,73 @@ export default function ServerDetail() {
               </div>
             </div>
 
+            {/* Agent Health */}
+            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  Agent Health
+                </h3>
+              </div>
+
+              {(() => {
+                const heartbeat = server.lastHeartbeat ? new Date(server.lastHeartbeat) : null;
+                const now = new Date();
+                const diffMs = heartbeat ? now.getTime() - heartbeat.getTime() : Infinity;
+                const diffMin = diffMs / 60000;
+
+                let statusColor = 'text-muted-foreground';
+                let statusBg = 'bg-muted';
+                let statusLabel = 'Unknown';
+                let StatusIcon = WifiOff;
+
+                if (diffMin <= 2) {
+                  statusColor = 'text-success';
+                  statusBg = 'bg-success/10';
+                  statusLabel = 'Connected';
+                  StatusIcon = Wifi;
+                } else if (diffMin <= 5) {
+                  statusColor = 'text-warning';
+                  statusBg = 'bg-warning/10';
+                  statusLabel = 'Delayed';
+                  StatusIcon = Wifi;
+                } else if (heartbeat) {
+                  statusColor = 'text-critical';
+                  statusBg = 'bg-critical/10';
+                  statusLabel = 'Disconnected';
+                  StatusIcon = WifiOff;
+                }
+
+                return (
+                  <div className="space-y-3">
+                    <div className={`flex items-center gap-3 rounded-lg ${statusBg} p-3`}>
+                      <StatusIcon className={`h-5 w-5 ${statusColor}`} />
+                      <div>
+                        <p className={`text-sm font-semibold ${statusColor}`}>{statusLabel}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {heartbeat
+                            ? `Last heartbeat ${formatDistanceToNow(heartbeat, { addSuffix: true })}`
+                            : 'No heartbeat received yet'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Status</span>
+                      <span className="text-foreground font-medium">{server.status}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Active Alerts</span>
+                      <span className="text-foreground font-medium">{server.activeAlerts}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">OS</span>
+                      <span className="text-foreground font-medium">{server.operatingSystem || 'N/A'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Agent Key */}
             <div className="rounded-xl border border-border bg-card p-6 space-y-4">
               <h3 className="font-display text-lg font-semibold text-foreground">
@@ -1010,11 +930,12 @@ export default function ServerDetail() {
 
               <div className="flex gap-2">
                 <Input
+                  type="password"
                   value={server.agentKey}
                   readOnly
                   className="font-mono text-xs"
                 />
-                <Button variant="outline" size="icon" onClick={copyAgentKey}>
+                <Button variant="outline" size="icon" onClick={copyAgentKey} aria-label="Copy agent key">
                   {copied ? (
                     <Check className="h-4 w-4 text-success" />
                   ) : (
@@ -1026,6 +947,7 @@ export default function ServerDetail() {
                   size="icon"
                   onClick={regenerateKey}
                   disabled={isRegenerating}
+                  aria-label="Regenerate agent key"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRegenerating ? 'animate-spin' : ''}`} />
                 </Button>
