@@ -57,6 +57,12 @@ import {
 } from 'lucide-react';
 import { serversApi, alertRulesApi, Server as ServerType, AlertRule } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const METRIC_TYPES = [
   { value: 'CPU_USAGE', label: 'CPU Usage (%)' },
@@ -296,6 +302,7 @@ export default function AlertRules() {
   };
 
   const [disableConfirmRuleId, setDisableConfirmRuleId] = useState<number | null>(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true);
 
   const handleDeleteRule = async (ruleId: number) => {
     try {
@@ -334,46 +341,17 @@ export default function AlertRules() {
     }
     setIsSubmitting(true);
     try {
-      // Backend has no PUT endpoint — delete old rule then create a new one.
-      // Save the new rule data first so we can re-create the original if create fails.
-      const newRuleData = {
+      // Try the PUT endpoint first (preferred — atomic update)
+      const response = await alertRulesApi.update(editingRule.id, {
         name: editFormData.name,
         description: editFormData.description || undefined,
-        serverId: Number(selectedServer),
         metricType: editFormData.metricType,
         conditionOperator: editFormData.conditionOperator,
         thresholdValue: Number(editFormData.thresholdValue),
         durationSeconds: Number(editFormData.durationSeconds),
         severity: editFormData.severity,
         cooldownMinutes: Number(editFormData.cooldownMinutes),
-      };
-
-      await alertRulesApi.delete(editingRule.id);
-
-      let response;
-      try {
-        response = await alertRulesApi.create(newRuleData);
-      } catch (createError) {
-        // Create failed after delete — try to restore the original rule
-        try {
-          await alertRulesApi.create({
-            name: editingRule.name,
-            description: editingRule.description || undefined,
-            serverId: Number(selectedServer),
-            metricType: editingRule.metricType,
-            conditionOperator: editingRule.conditionOperator,
-            thresholdValue: editingRule.thresholdValue,
-            durationSeconds: editingRule.durationSeconds || 60,
-            severity: editingRule.severity,
-            cooldownMinutes: editingRule.cooldownMinutes || 5,
-          });
-          toast({ title: 'Update failed — original rule restored', variant: 'destructive' });
-        } catch {
-          toast({ title: 'Update failed and could not restore original rule', variant: 'destructive' });
-        }
-        fetchRules();
-        return;
-      }
+      });
 
       if (response.success) {
         setRules(rules.map(r => r.id === editingRule.id ? response.data : r));
@@ -381,13 +359,63 @@ export default function AlertRules() {
         setEditingRule(null);
         toast({ title: 'Rule updated successfully' });
       }
-    } catch (error) {
-      toast({
-        title: 'Failed to update rule',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
-      });
-      fetchRules();
+    } catch {
+      // Fallback: delete old rule then create a new one.
+      // Save the new rule data first so we can re-create the original if create fails.
+      try {
+        const newRuleData = {
+          name: editFormData.name,
+          description: editFormData.description || undefined,
+          serverId: Number(selectedServer),
+          metricType: editFormData.metricType,
+          conditionOperator: editFormData.conditionOperator,
+          thresholdValue: Number(editFormData.thresholdValue),
+          durationSeconds: Number(editFormData.durationSeconds),
+          severity: editFormData.severity,
+          cooldownMinutes: Number(editFormData.cooldownMinutes),
+        };
+
+        await alertRulesApi.delete(editingRule.id);
+
+        let response;
+        try {
+          response = await alertRulesApi.create(newRuleData);
+        } catch (createError) {
+          // Create failed after delete — try to restore the original rule
+          try {
+            await alertRulesApi.create({
+              name: editingRule.name,
+              description: editingRule.description || undefined,
+              serverId: Number(selectedServer),
+              metricType: editingRule.metricType,
+              conditionOperator: editingRule.conditionOperator,
+              thresholdValue: editingRule.thresholdValue,
+              durationSeconds: editingRule.durationSeconds || 60,
+              severity: editingRule.severity,
+              cooldownMinutes: editingRule.cooldownMinutes || 5,
+            });
+            toast({ title: 'Update failed — original rule restored', variant: 'destructive' });
+          } catch {
+            toast({ title: 'Update failed and could not restore original rule', variant: 'destructive' });
+          }
+          fetchRules();
+          return;
+        }
+
+        if (response.success) {
+          setRules(rules.map(r => r.id === editingRule.id ? response.data : r));
+          setIsEditDialogOpen(false);
+          setEditingRule(null);
+          toast({ title: 'Rule updated successfully' });
+        }
+      } catch (error) {
+        toast({
+          title: 'Failed to update rule',
+          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+          variant: 'destructive',
+        });
+        fetchRules();
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -517,21 +545,23 @@ export default function AlertRules() {
 
                   <div className="space-y-2">
                     <Label>Severity</Label>
-                    <Select
+                    <RadioGroup
                       value={formData.severity}
                       onValueChange={(value) => setFormData({ ...formData, severity: value })}
+                      className="flex gap-4"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select severity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SEVERITIES.map((sev) => (
-                          <SelectItem key={sev.value} value={sev.value}>
-                            {sev.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      {SEVERITIES.map((sev) => (
+                        <div key={sev.value} className="flex items-center space-x-2">
+                          <RadioGroupItem value={sev.value} id={`severity-${sev.value}`} />
+                          <Label htmlFor={`severity-${sev.value}`} className="cursor-pointer">
+                            <span className={`text-sm ${
+                              sev.value === 'CRITICAL' ? 'text-destructive' :
+                              sev.value === 'WARNING' ? 'text-amber-500' : 'text-blue-500'
+                            }`}>{sev.label}</span>
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
                   </div>
                 </div>
 
@@ -700,24 +730,29 @@ export default function AlertRules() {
           </div>
         )}
 
-        {/* Suggested Rules Section */}
+        {/* Suggested Rules Section (Collapsible) */}
         {servers.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-6 mt-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-                <Lightbulb className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-display text-lg font-semibold text-foreground">
-                  Suggested Alert Rules
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Click to quickly set up common monitoring alerts
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Collapsible open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+            <div className="rounded-xl border border-border bg-card p-6 mt-6">
+              <CollapsibleTrigger className="w-full">
+                <div className="flex items-center justify-between cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+                      <Lightbulb className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-display text-lg font-semibold text-foreground">
+                        Suggested Alert Rules
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Click to quickly set up common monitoring alerts
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${suggestionsOpen ? 'rotate-90' : ''}`} />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>\n\n            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
               {RULE_SUGGESTIONS.map((suggestion, index) => {
                 const getIcon = () => {
                   switch (suggestion.metricType) {
@@ -786,7 +821,9 @@ export default function AlertRules() {
                 );
               })}
             </div>
+              </CollapsibleContent>
           </div>
+          </Collapsible>
         )}
       </div>
 
