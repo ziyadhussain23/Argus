@@ -20,22 +20,11 @@ import {
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { serversApi, type Server } from '@/lib/api';
+import { reportsApi, serversApi, type ScheduledReport, type Server } from '@/lib/api';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
-
-interface ScheduledReport {
-  id: string;
-  name: string;
-  format: 'pdf' | 'csv' | 'excel';
-  servers: number[];            // server IDs — empty means "all"
-  metrics: string[];
-  timeframe: string;            // e.g. '1h', '6h', '24h', '7d', '30d'
-  frequency: 'none' | 'auto';
-  recipients: string;           // comma-separated emails
-  enabled: boolean;             // whether auto-email is active
-  lastGenerated?: string;       // ISO timestamp
-}
 
 const AVAILABLE_METRICS = [
   { value: 'CPU_USAGE', label: 'CPU Usage', unit: '%', icon: Cpu },
@@ -69,18 +58,12 @@ export default function ScheduledReports() {
   const { toast } = useToast();
   const [servers, setServers] = useState<Server[]>([]);
   const [loadingServers, setLoadingServers] = useState(true);
-  const [generatingId, setGeneratingId] = useState<string | null>(null);
-
-  const [reports, setReports] = useState<ScheduledReport[]>(() => {
-    const stored = localStorage.getItem('argus_scheduled_reports');
-    if (stored) {
-      try { return JSON.parse(stored); } catch { /* ignore */ }
-    }
-    return [];
-  });
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
+  const [reports, setReports] = useState<ScheduledReport[]>([]);
 
   const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     format: 'pdf' as 'pdf' | 'csv' | 'excel',
@@ -92,17 +75,23 @@ export default function ScheduledReports() {
   });
 
   useEffect(() => {
-    serversApi.getAll().then(res => {
-      setServers(res.data ?? []);
-    }).catch(() => {
-      toast({ title: 'Failed to load servers', variant: 'destructive' });
-    }).finally(() => setLoadingServers(false));
+    const load = async () => {
+      try {
+        const [serversRes, reportsRes] = await Promise.all([
+          serversApi.getAll(),
+          reportsApi.getAll(),
+        ]);
+        setServers(serversRes.data ?? []);
+        setReports(reportsRes.data ?? []);
+      } catch {
+        toast({ title: 'Failed to load report data', variant: 'destructive' });
+      } finally {
+        setLoadingServers(false);
+        setLoadingReports(false);
+      }
+    };
+    load();
   }, []);
-
-  const saveReports = (updated: ScheduledReport[]) => {
-    setReports(updated);
-    localStorage.setItem('argus_scheduled_reports', JSON.stringify(updated));
-  };
 
   const resetForm = () => {
     setFormData({ name: '', format: 'pdf', servers: [], metrics: [], timeframe: '24h', frequency: 'none', recipients: '' });
@@ -153,42 +142,56 @@ export default function ScheduledReports() {
     return true;
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!validateForm()) return;
 
-    const newReport: ScheduledReport = {
-      id: crypto.randomUUID(),
-      name: formData.name.trim(),
-      format: formData.format,
-      servers: formData.servers,
-      metrics: formData.metrics,
-      timeframe: formData.timeframe,
-      frequency: formData.frequency,
-      recipients: formData.recipients.trim(),
-      enabled: formData.frequency === 'auto',
-    };
-
-    saveReports([...reports, newReport]);
-    resetForm();
-    toast({ title: 'Report template created' });
+    try {
+      const response = await reportsApi.create({
+        name: formData.name.trim(),
+        format: formData.format,
+        servers: formData.servers,
+        metrics: formData.metrics,
+        timeframe: formData.timeframe,
+        frequency: formData.frequency,
+        recipients: formData.recipients.trim(),
+        enabled: formData.frequency === 'auto',
+      });
+      setReports(prev => [response.data, ...prev]);
+      resetForm();
+      toast({ title: 'Report template created' });
+    } catch (error) {
+      toast({
+        title: 'Failed to create report template',
+        description: error instanceof Error ? error.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!validateForm() || !editingId) return;
 
-    saveReports(reports.map(r => r.id === editingId ? {
-      ...r,
-      name: formData.name.trim(),
-      format: formData.format,
-      servers: formData.servers,
-      metrics: formData.metrics,
-      timeframe: formData.timeframe,
-      frequency: formData.frequency,
-      recipients: formData.recipients.trim(),
-      enabled: formData.frequency === 'auto',
-    } : r));
-    resetForm();
-    toast({ title: 'Report template updated' });
+    try {
+      const response = await reportsApi.update(editingId, {
+        name: formData.name.trim(),
+        format: formData.format,
+        servers: formData.servers,
+        metrics: formData.metrics,
+        timeframe: formData.timeframe,
+        frequency: formData.frequency,
+        recipients: formData.recipients.trim(),
+        enabled: formData.frequency === 'auto',
+      });
+      setReports(prev => prev.map(r => r.id === editingId ? response.data : r));
+      resetForm();
+      toast({ title: 'Report template updated' });
+    } catch (error) {
+      toast({
+        title: 'Failed to update report template',
+        description: error instanceof Error ? error.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    }
   };
 
   const openEdit = (report: ScheduledReport) => {
@@ -205,13 +208,40 @@ export default function ScheduledReports() {
     setIsCreating(true);
   };
 
-  const toggleReportEnabled = (id: string) => {
-    saveReports(reports.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
+  const toggleReportEnabled = async (report: ScheduledReport) => {
+    try {
+      const response = await reportsApi.update(report.id, {
+        name: report.name,
+        format: report.format,
+        servers: report.servers,
+        metrics: report.metrics,
+        timeframe: report.timeframe,
+        frequency: report.frequency,
+        recipients: report.recipients,
+        enabled: !report.enabled,
+      });
+      setReports(prev => prev.map(r => r.id === report.id ? response.data : r));
+    } catch (error) {
+      toast({
+        title: 'Failed to toggle auto email',
+        description: error instanceof Error ? error.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const handleDelete = (id: string) => {
-    saveReports(reports.filter(r => r.id !== id));
-    toast({ title: 'Report template removed' });
+  const handleDelete = async (id: number) => {
+    try {
+      await reportsApi.delete(id);
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast({ title: 'Report template removed' });
+    } catch (error) {
+      toast({
+        title: 'Failed to delete report template',
+        description: error instanceof Error ? error.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    }
   };
 
   // ── Generate report with real data ──────────────────────────
@@ -293,7 +323,7 @@ export default function ScheduledReports() {
       }
 
       // Update lastGenerated
-      saveReports(reports.map(r => r.id === report.id ? { ...r, lastGenerated: now.toISOString() } : r));
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, lastGeneratedAt: now.toISOString() } : r));
       toast({ title: `Report "${report.name}" downloaded` });
 
     } catch {
@@ -500,16 +530,18 @@ export default function ScheduledReports() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Export Format</Label>
-                  <Select value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v as 'pdf' | 'csv' | 'excel' })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FORMAT_OPTIONS.map(f => (
-                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RadioGroup
+                    value={formData.format}
+                    onValueChange={(v) => setFormData({ ...formData, format: v as 'pdf' | 'csv' | 'excel' })}
+                    className="flex gap-3"
+                  >
+                    {FORMAT_OPTIONS.map(f => (
+                      <div key={f.value} className="flex items-center space-x-2">
+                        <RadioGroupItem value={f.value} id={`format-${f.value}`} />
+                        <Label htmlFor={`format-${f.value}`} className="cursor-pointer text-sm">{f.label}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
                 </div>
 
                 <div className="space-y-2">
@@ -615,7 +647,12 @@ export default function ScheduledReports() {
         )}
 
         {/* Reports List */}
-        {reports.length === 0 && !isCreating ? (
+        {loadingReports && !isCreating ? (
+          <div className="rounded-xl border border-border bg-card/50 py-16 text-center">
+            <Loader2 className="mx-auto h-12 w-12 animate-spin text-muted-foreground" />
+            <p className="mt-3 text-sm text-muted-foreground">Loading report templates...</p>
+          </div>
+        ) : reports.length === 0 && !isCreating ? (
           <div className="rounded-xl border border-dashed border-border bg-card/50 py-16 text-center">
             <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 font-display text-lg font-medium text-foreground">No report templates</h3>
@@ -640,7 +677,11 @@ export default function ScheduledReports() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                        <FileText className="h-5 w-5 text-primary" />
+                        <AspectRatio ratio={1}>
+                          <div className="flex items-center justify-center h-full w-full">
+                            <FileText className="h-5 w-5 text-primary" />
+                          </div>
+                        </AspectRatio>
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-medium text-foreground truncate">{report.name}</h4>
@@ -670,10 +711,10 @@ export default function ScheduledReports() {
                               → {report.recipients}
                             </span>
                           )}
-                          {report.lastGenerated && (
+                          {report.lastGeneratedAt && (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              Last: {new Date(report.lastGenerated).toLocaleDateString()}
+                              Last: {new Date(report.lastGeneratedAt).toLocaleDateString()}
                             </span>
                           )}
                         </div>
@@ -683,7 +724,7 @@ export default function ScheduledReports() {
                       {hasSchedule && (
                         <Switch
                           checked={report.enabled}
-                          onCheckedChange={() => toggleReportEnabled(report.id)}
+                          onCheckedChange={() => toggleReportEnabled(report)}
                           aria-label={report.enabled ? 'Disable auto-email' : 'Enable auto-email'}
                         />
                       )}
