@@ -48,6 +48,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarSeparator,
+  MenubarTrigger,
+} from '@/components/ui/menubar';
 
 interface VisibleSections {
   servers: boolean;
@@ -495,6 +503,54 @@ export default function Dashboard() {
             />
           </motion.div>
         </div>
+
+        {/* Quick Actions Menubar */}
+        <Menubar className="w-fit">
+          <MenubarMenu>
+            <MenubarTrigger>View</MenubarTrigger>
+            <MenubarContent>
+              {sectionOrder.map((section) => (
+                <MenubarItem key={section} onClick={() => toggleSection(section)}>
+                  <span className="mr-2">{visibleSections[section] ? '\u2713' : ' '}</span>
+                  {SECTION_LABELS[section]}
+                </MenubarItem>
+              ))}
+            </MenubarContent>
+          </MenubarMenu>
+          <MenubarMenu>
+            <MenubarTrigger>Actions</MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem onClick={() => window.location.href = '/servers/new'}>
+                Add Server
+              </MenubarItem>
+              <MenubarItem onClick={() => window.location.href = '/rules'}>
+                Manage Rules
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onClick={() => window.location.href = '/reports'}>
+                Reports
+              </MenubarItem>
+              <MenubarItem onClick={() => window.location.href = '/history'}>
+                Full History
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+          <MenubarMenu>
+            <MenubarTrigger>Help</MenubarTrigger>
+            <MenubarContent>
+              <MenubarItem onClick={() => window.location.href = '/docs'}>
+                Documentation
+              </MenubarItem>
+              <MenubarItem onClick={() => window.location.href = '/help'}>
+                Support
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem onClick={() => window.location.href = '/status'}>
+                System Status
+              </MenubarItem>
+            </MenubarContent>
+          </MenubarMenu>
+        </Menubar>
 
         <div className="grid gap-8 lg:grid-cols-2">
           {sectionOrder.filter(s => s !== 'resources' && visibleSections[s]).map((section, idx) => {
