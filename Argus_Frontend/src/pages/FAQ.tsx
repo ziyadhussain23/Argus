@@ -8,6 +8,11 @@ import {
     Activity, Search, ChevronDown, ChevronRight, HelpCircle,
     Server, CreditCard, Shield, User, Settings, MessageCircle, ArrowLeft
 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 const faqCategories = [
     { id: 'general', label: 'General', icon: HelpCircle },
@@ -301,39 +306,33 @@ export default function FAQ() {
                                     filteredFaqs.map((faq, i) => (
                                         <motion.div
                                             key={i}
-                                            className="bg-card rounded-xl border border-border overflow-hidden"
                                             initial={{ opacity: 0, y: 20 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: i * 0.05 }}
                                         >
-                                            <button
-                                                onClick={() => toggleQuestion(faq.question)}
-                                                className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/50 transition-colors"
+                                            <Collapsible
+                                              open={openQuestions.includes(faq.question)}
+                                              onOpenChange={() => toggleQuestion(faq.question)}
                                             >
-                                                <span className="font-semibold text-foreground pr-4">{faq.question}</span>
-                                                <motion.div
-                                                    animate={{ rotate: openQuestions.includes(faq.question) ? 180 : 0 }}
-                                                    transition={{ duration: 0.2 }}
-                                                >
-                                                    <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                                                </motion.div>
-                                            </button>
-                                            <AnimatePresence>
-                                                {openQuestions.includes(faq.question) && (
+                                              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                                                <CollapsibleTrigger className="w-full flex items-center justify-between p-6 text-left hover:bg-muted/50 transition-colors">
+                                                    <span className="font-semibold text-foreground pr-4">{faq.question}</span>
                                                     <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: 'auto', opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
+                                                        animate={{ rotate: openQuestions.includes(faq.question) ? 180 : 0 }}
                                                         transition={{ duration: 0.2 }}
                                                     >
-                                                        <div className="px-6 pb-6 pt-0">
-                                                            <div className="pt-4 border-t border-border">
-                                                                <p className="text-muted-foreground leading-relaxed">{faq.answer}</p>
-                                                            </div>
-                                                        </div>
+                                                        <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                                     </motion.div>
-                                                )}
-                                            </AnimatePresence>
+                                                </CollapsibleTrigger>
+                                                <CollapsibleContent>
+                                                    <div className="px-6 pb-6 pt-0">
+                                                        <div className="pt-4 border-t border-border">
+                                                            <p className="text-muted-foreground leading-relaxed">{faq.answer}</p>
+                                                        </div>
+                                                    </div>
+                                                </CollapsibleContent>
+                                              </div>
+                                            </Collapsible>
                                         </motion.div>
                                     ))
                                 )}

@@ -21,6 +21,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { reportsApi, serversApi, type ScheduledReport, type Server } from '@/lib/api';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 
@@ -528,16 +530,18 @@ export default function ScheduledReports() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Export Format</Label>
-                  <Select value={formData.format} onValueChange={(v) => setFormData({ ...formData, format: v as 'pdf' | 'csv' | 'excel' })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FORMAT_OPTIONS.map(f => (
-                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RadioGroup
+                    value={formData.format}
+                    onValueChange={(v) => setFormData({ ...formData, format: v as 'pdf' | 'csv' | 'excel' })}
+                    className="flex gap-3"
+                  >
+                    {FORMAT_OPTIONS.map(f => (
+                      <div key={f.value} className="flex items-center space-x-2">
+                        <RadioGroupItem value={f.value} id={`format-${f.value}`} />
+                        <Label htmlFor={`format-${f.value}`} className="cursor-pointer text-sm">{f.label}</Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
                 </div>
 
                 <div className="space-y-2">
@@ -673,7 +677,11 @@ export default function ScheduledReports() {
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                        <FileText className="h-5 w-5 text-primary" />
+                        <AspectRatio ratio={1}>
+                          <div className="flex items-center justify-center h-full w-full">
+                            <FileText className="h-5 w-5 text-primary" />
+                          </div>
+                        </AspectRatio>
                       </div>
                       <div className="min-w-0">
                         <h4 className="font-medium text-foreground truncate">{report.name}</h4>

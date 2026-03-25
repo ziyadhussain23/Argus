@@ -62,6 +62,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useRealtime } from '@/hooks/use-realtime';
 import { RealtimeSubscription } from '@/hooks/use-realtime';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip
@@ -387,16 +393,23 @@ export default function ServerDetail() {
       <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
-          <div className="flex gap-1 rounded-lg border border-border p-1 bg-muted/50">
-            <Button variant={ct === 'line' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCt('line')} className="h-7 px-2 gap-1 text-xs">
-              <LineChartIcon className="h-3 w-3" /> Line
-            </Button>
-            <Button variant={ct === 'area' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCt('area')} className="h-7 px-2 gap-1 text-xs">
-              <TrendingUp className="h-3 w-3" /> Area
-            </Button>
-            <Button variant={ct === 'bar' ? 'secondary' : 'ghost'} size="sm" onClick={() => setCt('bar')} className="h-7 px-2 gap-1 text-xs">
-              <BarChart3 className="h-3 w-3" /> Bar
-            </Button>
+          <div className="flex gap-1 items-center">
+            <ToggleGroup
+              type="single"
+              value={ct}
+              onValueChange={(v) => { if (v) setCt(v as ChartType); }}
+              className="rounded-lg border border-border p-1 bg-muted/50"
+            >
+              <ToggleGroupItem value="line" className="h-7 px-2 gap-1 text-xs">
+                <LineChartIcon className="h-3 w-3" /> Line
+              </ToggleGroupItem>
+              <ToggleGroupItem value="area" className="h-7 px-2 gap-1 text-xs">
+                <TrendingUp className="h-3 w-3" /> Area
+              </ToggleGroupItem>
+              <ToggleGroupItem value="bar" className="h-7 px-2 gap-1 text-xs">
+                <BarChart3 className="h-3 w-3" /> Bar
+              </ToggleGroupItem>
+            </ToggleGroup>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" style={chartColor ? { color: chartColor } : {}}>
@@ -716,68 +729,70 @@ export default function ServerDetail() {
           defaultColor: 'hsl(142 76% 36%)',
         })}
 
-        {/* Disk & Memory Info */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Memory Information */}
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <MemoryStick className="h-5 w-5 text-primary" />
-              <h3 className="font-display text-lg font-semibold text-foreground">
-                Memory Information
-              </h3>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold text-foreground">{formatSize(memoryTotal)}</span>
+        {/* Disk & Memory Info (Resizable) */}
+        <ResizablePanelGroup direction="horizontal" className="rounded-xl border-2 border-border shadow-sm min-h-[280px]">
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <div className="bg-card p-6 h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <MemoryStick className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  Memory Information
+                </h3>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Used</span>
-                <span className="font-semibold text-warning">{formatSize(memoryUsed)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Available</span>
-                <span className="font-semibold text-success">{formatSize(memoryAvailable)}</span>
-              </div>
-              <div className="h-3 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${memoryTotal > 0 ? (memoryUsed / memoryTotal) * 100 : 0}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Disk Information */}
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <HardDrive className="h-5 w-5 text-primary" />
-              <h3 className="font-display text-lg font-semibold text-foreground">
-                Disk Information
-              </h3>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Total</span>
-                <span className="font-semibold text-foreground">{formatSize(diskTotal)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Used</span>
-                <span className="font-semibold text-warning">{formatSize(diskUsed)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Available</span>
-                <span className="font-semibold text-success">{formatSize(diskAvailable)}</span>
-              </div>
-              <div className="h-3 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
-                  style={{ width: `${diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0}%` }}
-                />
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold text-foreground">{formatSize(memoryTotal)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Used</span>
+                  <span className="font-semibold text-warning">{formatSize(memoryUsed)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Available</span>
+                  <span className="font-semibold text-success">{formatSize(memoryAvailable)}</span>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
+                    style={{ width: `${memoryTotal > 0 ? (memoryUsed / memoryTotal) * 100 : 0}%` }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={50} minSize={30}>
+            <div className="bg-card p-6 h-full">
+              <div className="flex items-center gap-2 mb-4">
+                <HardDrive className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-lg font-semibold text-foreground">
+                  Disk Information
+                </h3>
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold text-foreground">{formatSize(diskTotal)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Used</span>
+                  <span className="font-semibold text-warning">{formatSize(diskUsed)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Available</span>
+                  <span className="font-semibold text-success">{formatSize(diskAvailable)}</span>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
+                    style={{ width: `${diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
 
         <div className="grid gap-8 lg:grid-cols-2">
           {/* CPU & System Info */}

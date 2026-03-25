@@ -7,7 +7,7 @@ import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Activity, Loader2, ArrowLeft, Mail } from 'lucide-react';
+import { Activity, Loader2, ArrowLeft, Mail, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -21,6 +21,8 @@ export default function ForgotPassword() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [cooldown, setCooldown] = useState(0);
+    const [usernameLookup, setUsernameLookup] = useState('');
+    const [isLookingUp, setIsLookingUp] = useState(false);
     const { toast } = useToast();
 
     const form = useForm<ForgotPasswordFormValues>({
@@ -56,6 +58,22 @@ export default function ForgotPassword() {
             });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleUsernameLookup = async () => {
+        if (!usernameLookup.trim()) return;
+        setIsLookingUp(true);
+        try {
+            const response = await authApi.getUserEmail(usernameLookup.trim());
+            if (response.success && response.data) {
+                form.setValue('email', response.data);
+                toast({ title: 'Email found', description: 'Your email has been filled in.' });
+            }
+        } catch {
+            toast({ title: 'Username not found', description: 'No account found with that username.', variant: 'destructive' });
+        } finally {
+            setIsLookingUp(false);
         }
     };
 
@@ -111,6 +129,25 @@ export default function ForgotPassword() {
                                         </FormItem>
                                     )}
                                 />
+
+                                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                                    <p className="text-xs text-muted-foreground">Don't remember your email? Look it up by username:</p>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1">
+                                            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Enter username"
+                                                className="pl-9 h-10"
+                                                value={usernameLookup}
+                                                onChange={(e) => setUsernameLookup(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUsernameLookup(); } }}
+                                            />
+                                        </div>
+                                        <Button type="button" variant="outline" size="default" onClick={handleUsernameLookup} disabled={isLookingUp || !usernameLookup.trim()}>
+                                            {isLookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Lookup'}
+                                        </Button>
+                                    </div>
+                                </div>
 
                                 <Button type="submit" className="w-full" disabled={isLoading}>
                                     {isLoading ? (

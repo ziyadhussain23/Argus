@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ServerCard } from '@/components/ServerCard';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,10 @@ import {
   Server as ServerIcon,
   Filter,
   ArrowUpDown,
-  Upload
+  Upload,
+  Eye,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { serversApi, Server } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +25,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
+
+const SERVERS_PER_PAGE = 9;
 
 export default function Servers() {
   const [servers, setServers] = useState<Server[]>([]);
@@ -31,6 +57,8 @@ export default function Servers() {
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name-az');
+  const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -114,6 +142,27 @@ export default function Servers() {
     WARNING: servers.filter(s => s.status === 'WARNING').length,
     CRITICAL: servers.filter(s => s.status === 'CRITICAL').length,
   }), [servers]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredServers.length / SERVERS_PER_PAGE));
+  const paginatedServers = filteredServers.slice(
+    (currentPage - 1) * SERVERS_PER_PAGE,
+    currentPage * SERVERS_PER_PAGE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, statusFilter, sortBy]);
+
+  const handleDeleteServer = async (server: Server) => {
+    try {
+      await serversApi.delete(server.id);
+      setServers(prev => prev.filter(s => s.id !== server.id));
+      toast({ title: `Server "${server.name}" deleted` });
+    } catch {
+      toast({ title: 'Failed to delete server', variant: 'destructive' });
+    }
+  };
 
   return (
     <MainLayout>
@@ -232,10 +281,94 @@ export default function Servers() {
             )}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredServers.map((server) => (
-              <ServerCard key={server.id} server={server} />
-            ))}
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {paginatedServers.map((server) => (
+                <ContextMenu key={server.id}>
+                  <ContextMenuTrigger>
+                    <HoverCard openDelay={400} closeDelay={100}>
+                      <HoverCardTrigger asChild>
+                        <div>
+                          <ServerCard server={server} />
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-72" side="right">
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold">{server.name}</h4>
+                          <p className="text-xs text-muted-foreground">{server.hostAddress}</p>
+                          <div className="flex items-center gap-2 text-xs">
+                            <div className={`h-2 w-2 rounded-full ${server.status === 'ONLINE' ? 'bg-success' : server.status === 'CRITICAL' ? 'bg-destructive' : server.status === 'WARNING' ? 'bg-warning' : 'bg-muted-foreground'}`} />
+                            <span>{server.status}</span>
+                          </div>
+                          {server.lastHeartbeat && (
+                            <p className="text-xs text-muted-foreground">
+                              Last heartbeat: {new Date(server.lastHeartbeat).toLocaleString()}
+                            </p>
+                          )}
+                          {server.activeAlerts > 0 && (
+                            <p className="text-xs text-destructive font-medium">{server.activeAlerts} active alert{server.activeAlerts > 1 ? 's' : ''}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">{server.operatingSystem}</p>
+                        </div>
+                      </HoverCardContent>
+                    </HoverCard>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onClick={() => navigate(`/servers/${server.id}`)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => navigate(`/servers/${server.id}/edit`)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit Server
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem className="text-destructive" onClick={() => handleDeleteServer(server)}>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Server
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                    .map((page, idx, arr) => (
+                      <span key={page} className="contents">
+                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                          <PaginationItem><PaginationEllipsis /></PaginationItem>
+                        )}
+                        <PaginationItem>
+                          <PaginationLink
+                            isActive={currentPage === page}
+                            onClick={() => setCurrentPage(page)}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      </span>
+                    ))}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
           </div>
         )}
       </div>

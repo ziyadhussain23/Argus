@@ -285,6 +285,8 @@ export const serversApi = {
 
   getLatestMetric: (id: number, type: string) =>
     apiRequest<Metric>(`/servers/${id}/metrics/latest?type=${type}`),
+
+  getByStatus: (status: string) => apiRequest<Server[]>(`/servers/status/${encodeURIComponent(status)}`),
 };
 
 // Alerts API
@@ -300,6 +302,8 @@ export const alertsApi = {
     apiRequest<null>(`/alerts/${alertId}/resolve`, { method: 'POST' }),
 
   getResolved: () => apiRequest<Alert[]>('/alerts/resolved'),
+
+  getByStatus: (status: string) => apiRequest<Alert[]>(`/alerts/status/${encodeURIComponent(status)}`),
 };
 
 // Alert Rules API
@@ -328,6 +332,8 @@ export const alertRulesApi = {
 
   delete: (ruleId: number) =>
     apiRequest<null>(`/alerts/rules/${ruleId}`, { method: 'DELETE' }),
+
+  getAllEnabled: () => apiRequest<AlertRule[]>('/alerts/rules/enabled'),
 
   update: (ruleId: number, data: {
     name: string;
@@ -386,12 +392,20 @@ export const notificationsApi = {
   getSmsStatus: () => apiRequest<{ available: boolean; message: string }>('/notifications/sms/status'),
 
   getSmsLogs: () => apiRequest<SmsLogEntry[]>('/notifications/sms/logs'),
+
+  getByAlert: (alertId: number) => apiRequest<unknown[]>(`/notifications/alert/${alertId}`),
 };
 
 export const profileApi = {
   get: () => apiRequest<UserProfile>('/auth/profile'),
 
   validate: () => apiRequest<string>('/auth/validate'),
+
+  verifyToken: (token: string) =>
+    apiRequest<string>('/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
 };
 
 export const metricsApi = {

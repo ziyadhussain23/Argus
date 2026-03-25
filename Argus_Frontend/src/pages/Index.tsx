@@ -15,6 +15,21 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from '@/components/ui/navigation-menu';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 const features = [
   { icon: Server, title: 'Multi-Server Monitoring', desc: 'Monitor all your servers from a single dashboard' },
@@ -77,11 +92,48 @@ export default function Index() {
             <span className="font-display text-xl font-bold">Argus</span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8">
-            <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">About</Link>
-            <Link to="/faq" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">FAQ</Link>
-            <Link to="/help" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Help & Support</Link>
-          </nav>
+          <NavigationMenu className="hidden md:flex">
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Product</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="grid gap-3 p-4 w-[300px]">
+                    <NavigationMenuLink asChild>
+                      <Link to="/about" className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <div className="text-sm font-medium">About</div>
+                        <p className="text-xs text-muted-foreground mt-1">Learn about Argus monitoring</p>
+                      </Link>
+                    </NavigationMenuLink>
+                    <NavigationMenuLink asChild>
+                      <Link to="/docs" className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <div className="text-sm font-medium">Documentation</div>
+                        <p className="text-xs text-muted-foreground mt-1">Technical guides and API docs</p>
+                      </Link>
+                    </NavigationMenuLink>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuTrigger>Support</NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <div className="grid gap-3 p-4 w-[300px]">
+                    <NavigationMenuLink asChild>
+                      <Link to="/faq" className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <div className="text-sm font-medium">FAQ</div>
+                        <p className="text-xs text-muted-foreground mt-1">Frequently asked questions</p>
+                      </Link>
+                    </NavigationMenuLink>
+                    <NavigationMenuLink asChild>
+                      <Link to="/help" className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground">
+                        <div className="text-sm font-medium">Help & Support</div>
+                        <p className="text-xs text-muted-foreground mt-1">Get assistance with Argus</p>
+                      </Link>
+                    </NavigationMenuLink>
+                  </div>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
@@ -621,7 +673,7 @@ export default function Index() {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 hidden lg:grid">
             {features.map((feature, i) => (
               <motion.div
                 key={i}
@@ -639,6 +691,27 @@ export default function Index() {
                 <p className="text-muted-foreground">{feature.desc}</p>
               </motion.div>
             ))}
+          </div>
+
+          {/* Carousel for smaller screens */}
+          <div className="lg:hidden">
+            <Carousel opts={{ align: 'start', loop: true }} className="w-full">
+              <CarouselContent>
+                {features.map((feature, i) => (
+                  <CarouselItem key={i} className="md:basis-1/2">
+                    <div className="group p-8 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300 h-full">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-6 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <feature.icon className="h-7 w-7" />
+                      </div>
+                      <h3 className="font-display text-xl font-semibold text-foreground mb-3">{feature.title}</h3>
+                      <p className="text-muted-foreground">{feature.desc}</p>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
           </div>
         </div>
       </section>
