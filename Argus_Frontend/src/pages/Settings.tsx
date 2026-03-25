@@ -36,6 +36,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPSeparator,
+} from '@/components/ui/input-otp';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 
 export default function Settings() {
   const [apiUrl, setApiUrl] = useState('');
@@ -653,12 +669,26 @@ export default function Settings() {
                   {isSendingOtp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                   Send Code
                 </Button>
-                <Input
-                  placeholder="Enter OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                />
-                <Button type="button" onClick={handleVerifyOtp} disabled={isVerifyingPhone || !otp}>
+                <div>
+                  <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={(value) => setOtp(value)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <InputOTPSeparator />
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <Button type="button" onClick={handleVerifyOtp} disabled={isVerifyingPhone || otp.length < 6}>
                   {isVerifyingPhone ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Verify
                 </Button>
@@ -834,6 +864,53 @@ export default function Settings() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Quick Settings Drawer (Mobile) */}
+        <div className="fixed bottom-6 right-6 md:hidden z-40">
+          <Drawer>
+            <DrawerTrigger asChild>
+              <Button size="lg" className="rounded-full h-14 w-14 shadow-lg">
+                <SettingsIcon className="h-6 w-6" />
+              </Button>
+            </DrawerTrigger>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>Quick Settings</DrawerTitle>
+                <DrawerDescription>Toggle key notification preferences</DrawerDescription>
+              </DrawerHeader>
+              <div className="px-4 space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div>
+                    <p className="font-medium text-foreground">Email Notifications</p>
+                    <p className="text-sm text-muted-foreground">Receive alerts via email</p>
+                  </div>
+                  <Switch checked={emailNotifications} onCheckedChange={handleToggleEmail} disabled={isSavingNotifications} />
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                  <div>
+                    <p className="font-medium text-foreground">Critical Only</p>
+                    <p className="text-sm text-muted-foreground">Only critical severity</p>
+                  </div>
+                  <Switch checked={criticalOnly} onCheckedChange={handleToggleCritical} disabled={isSavingNotifications} />
+                </div>
+                {smsAvailable && (
+                  <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                    <div>
+                      <p className="font-medium text-foreground">SMS Notifications</p>
+                      <p className="text-sm text-muted-foreground">Receive alerts via SMS</p>
+                    </div>
+                    <Switch checked={smsEnabled} onCheckedChange={handleToggleSms} disabled={isSavingNotifications || !phoneVerified} />
+                  </div>
+                )}
+              </div>
+              <DrawerFooter>
+                <DrawerClose asChild>
+                  <Button variant="outline">Close</Button>
+                </DrawerClose>
+              </DrawerFooter>
+            </DrawerContent>
+          </Drawer>
         </div>
       </div>
     </MainLayout>
