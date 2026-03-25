@@ -59,6 +59,7 @@ import {
     ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Legend as RechartsLegend,
 } from 'recharts';
 import { format } from 'date-fns';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 type ChartType = 'line' | 'area' | 'bar';
 type MetricType = 'CPU_USAGE' | 'MEMORY_USAGE' | 'DISK_USAGE' | 'LOAD_AVERAGE';
@@ -789,44 +790,25 @@ export default function HistoryPage() {
                             </div>
 
                             {/* Chart Type Selector */}
-                            <div className={`flex gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30 transition-opacity ${overlayMode ? 'opacity-40 pointer-events-none' : ''}`}>
-                                <Button
-                                    variant={chartType === 'line' ? 'default' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setChartType('line')}
-                                    className={`h-9 px-3 gap-2 transition-all ${chartType === 'line'
-                                        ? 'shadow-md ring-2 ring-primary ring-offset-1 ring-offset-background'
-                                        : 'opacity-60 hover:opacity-100'
-                                        }`}
-                                >
-                                    <LineChartIcon className="h-4 w-4" />
-                                    <span className="hidden sm:inline font-medium">Line</span>
-                                </Button>
-                                <Button
-                                    variant={chartType === 'area' ? 'default' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setChartType('area')}
-                                    className={`h-9 px-3 gap-2 transition-all ${chartType === 'area'
-                                        ? 'shadow-md ring-2 ring-primary ring-offset-1 ring-offset-background'
-                                        : 'opacity-60 hover:opacity-100'
-                                        }`}
-                                >
-                                    <TrendingUp className="h-4 w-4" />
-                                    <span className="hidden sm:inline font-medium">Area</span>
-                                </Button>
-                                <Button
-                                    variant={chartType === 'bar' ? 'default' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setChartType('bar')}
-                                    className={`h-9 px-3 gap-2 transition-all ${chartType === 'bar'
-                                        ? 'shadow-md ring-2 ring-primary ring-offset-1 ring-offset-background'
-                                        : 'opacity-60 hover:opacity-100'
-                                        }`}
-                                >
-                                    <BarChart3 className="h-4 w-4" />
-                                    <span className="hidden sm:inline font-medium">Bar</span>
-                                </Button>
-                            </div>
+                            <ToggleGroup
+                              type="single"
+                              value={chartType}
+                              onValueChange={(v) => { if (v) setChartType(v as ChartType); }}
+                              className={`rounded-lg border-2 border-border p-1.5 bg-muted/30 transition-opacity ${overlayMode ? 'opacity-40 pointer-events-none' : ''}`}
+                            >
+                              <ToggleGroupItem value="line" className="h-9 px-3 gap-2">
+                                <LineChartIcon className="h-4 w-4" />
+                                <span className="hidden sm:inline font-medium">Line</span>
+                              </ToggleGroupItem>
+                              <ToggleGroupItem value="area" className="h-9 px-3 gap-2">
+                                <TrendingUp className="h-4 w-4" />
+                                <span className="hidden sm:inline font-medium">Area</span>
+                              </ToggleGroupItem>
+                              <ToggleGroupItem value="bar" className="h-9 px-3 gap-2">
+                                <BarChart3 className="h-4 w-4" />
+                                <span className="hidden sm:inline font-medium">Bar</span>
+                              </ToggleGroupItem>
+                            </ToggleGroup>
 
                             {/* Color Picker */}
                             <DropdownMenu>
