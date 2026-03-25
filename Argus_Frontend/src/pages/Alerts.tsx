@@ -25,6 +25,17 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
+
+const ALERTS_PER_PAGE = 10;
 
 export default function Alerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -38,6 +49,7 @@ export default function Alerts() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
   const [selectedAlerts, setSelectedAlerts] = useState<Set<number>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   const fetchAlerts = async () => {
@@ -194,6 +206,17 @@ export default function Alerts() {
     return matchesSearch && matchesSeverity && matchesStatus;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / ALERTS_PER_PAGE));
+  const paginatedAlerts = filteredAlerts.slice(
+    (currentPage - 1) * ALERTS_PER_PAGE,
+    currentPage * ALERTS_PER_PAGE
+  );
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, severityFilter, statusFilter, activeTab]);
+
   const counts = {
     total: alerts.length,
     critical: alerts.filter(a => a.severity === 'CRITICAL').length,
@@ -333,7 +356,7 @@ export default function Alerts() {
                   )}
                 </div>
 
-                {filteredAlerts.map((alert) => (
+                {paginatedAlerts.map((alert) => (
                   <div key={alert.id} className="flex items-start gap-3">
                     <div className="pt-5">
                       <Checkbox
@@ -350,6 +373,44 @@ export default function Alerts() {
                     </div>
                   </div>
                 ))}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                        .map((page, idx, arr) => (
+                          <span key={page} className="contents">
+                            {idx > 0 && arr[idx - 1] !== page - 1 && (
+                              <PaginationItem><PaginationEllipsis /></PaginationItem>
+                            )}
+                            <PaginationItem>
+                              <PaginationLink
+                                isActive={currentPage === page}
+                                onClick={() => setCurrentPage(page)}
+                                className="cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          </span>
+                        ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
               </div>
             )}
           </TabsContent>
@@ -403,7 +464,7 @@ export default function Alerts() {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredAlerts.map((alert) => (
+                {paginatedAlerts.map((alert) => (
                   <AlertCard
                     key={alert.id}
                     alert={alert}
@@ -411,6 +472,44 @@ export default function Alerts() {
                     onResolve={handleResolve}
                   />
                 ))}
+
+                {/* Pagination for resolved */}
+                {totalPages > 1 && (
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                        .map((page, idx, arr) => (
+                          <span key={page} className="contents">
+                            {idx > 0 && arr[idx - 1] !== page - 1 && (
+                              <PaginationItem><PaginationEllipsis /></PaginationItem>
+                            )}
+                            <PaginationItem>
+                              <PaginationLink
+                                isActive={currentPage === page}
+                                onClick={() => setCurrentPage(page)}
+                                className="cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          </span>
+                        ))}
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
               </div>
             )}
           </TabsContent>
