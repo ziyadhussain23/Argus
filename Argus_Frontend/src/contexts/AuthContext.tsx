@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
-import { User, getToken, setToken, removeToken } from '@/lib/api';
+import { User, getToken, setToken, removeToken, profileApi } from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -113,6 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setUser(JSON.parse(storedUser));
           scheduleExpiryLogout(token);
+
+          // Server-side validation: confirm the token is still accepted by the backend
+          profileApi.validate().catch(() => {
+            clearLogoutTimer();
+            clearAuthState();
+          });
         }
       } catch {
         clearAuthState();
