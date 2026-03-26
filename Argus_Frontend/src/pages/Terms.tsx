@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Activity, ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText } from 'lucide-react';
+import { ArgusLogo } from '@/components/ArgusLogo';
 import { motion } from 'framer-motion';
 
 export default function Terms() {
@@ -22,10 +23,7 @@ export default function Terms() {
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <Link to="/" className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                                <Activity className="h-5 w-5 text-primary-foreground" />
-                            </div>
-                            <span className="font-display text-xl font-bold">Argus</span>
+                            <ArgusLogo size="sm" />
                         </Link>
                     </div>
 
@@ -106,10 +104,7 @@ export default function Terms() {
                 <div className="container mx-auto px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                                <Activity className="h-5 w-5 text-primary-foreground" />
-                            </div>
-                            <span className="font-display text-xl font-bold">Argus</span>
+                            <ArgusLogo size="sm" />
                         </div>
                         <div className="flex gap-8 text-sm text-muted-foreground">
                             <Link to="/about" className="hover:text-primary transition-colors">About</Link>
