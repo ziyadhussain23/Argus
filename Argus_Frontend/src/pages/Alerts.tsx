@@ -316,7 +316,10 @@ export default function Alerts() {
               </div>
             ) : filteredAlerts.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-card/50 py-16 text-center">
-                <Shield className="mx-auto h-12 w-12 text-success" />
+                {alerts.length === 0 && (
+                  <img src="/illustrations/empty-alerts.svg" alt="No alerts" className="mx-auto h-48 w-48 mb-4 opacity-80" />
+                )}
+                {alerts.length > 0 && <Shield className="mx-auto h-12 w-12 text-success" />}
                 <h3 className="mt-4 font-display text-lg font-medium text-foreground">
                   {alerts.length === 0 ? 'All clear!' : 'No matching alerts'}
                 </h3>

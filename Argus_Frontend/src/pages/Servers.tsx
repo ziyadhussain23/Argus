@@ -262,7 +262,10 @@ export default function Servers() {
           </div>
         ) : filteredServers.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card/50 py-16 text-center">
-            <ServerIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+            {servers.length === 0 && (
+              <img src="/illustrations/empty-servers.svg" alt="No servers" className="mx-auto h-48 w-48 mb-4 opacity-80" />
+            )}
+            {servers.length > 0 && <ServerIcon className="mx-auto h-12 w-12 text-muted-foreground" />}
             <h3 className="mt-4 font-display text-lg font-medium text-foreground">
               {servers.length === 0 ? 'No servers yet' : 'No servers found'}
             </h3>
