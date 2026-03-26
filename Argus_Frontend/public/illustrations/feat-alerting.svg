@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 390" fill="none">
+  <defs>
+    <linearGradient id="fa-bg" x1="0" y1="0" x2="520" y2="390" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="fa-glow"><feGaussianBlur stdDeviation="8"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+  </defs>
+
+  <rect width="520" height="390" fill="url(#fa-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.04" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="97" x2="520" y2="97"/><line x1="0" y1="195" x2="520" y2="195"/><line x1="0" y1="292" x2="520" y2="292"/>
+    <line x1="130" y1="0" x2="130" y2="390"/><line x1="260" y1="0" x2="260" y2="390"/><line x1="390" y1="0" x2="390" y2="390"/>
+  </g>
+
+  <!-- Title -->
+  <text x="260" y="36" text-anchor="middle" fill="#c7d2fe" font-size="14" font-family="system-ui" font-weight="600" letter-spacing="2">SMART ALERTING</text>
+
+  <!-- Central alert bell -->
+  <g filter="url(#fa-glow)" transform="translate(210, 80)">
+    <circle cx="50" cy="50" r="44" fill="#1a1744" stroke="#ef4444" stroke-width="1.5"/>
+    <!-- Bell shape -->
+    <path d="M38,42 C38,30 62,30 62,42 L64,56 L36,56Z" fill="#ef4444" opacity="0.2" stroke="#ef4444" stroke-width="1"/>
+    <rect x="44" y="56" width="12" height="2" rx="1" fill="#ef4444" opacity="0.5"/>
+    <circle cx="50" cy="60" r="3" fill="#ef4444" opacity="0.3"/>
+    <!-- Notification badge -->
+    <circle cx="64" cy="32" r="8" fill="#ef4444"/>
+    <text x="64" y="36" text-anchor="middle" fill="white" font-size="9" font-family="system-ui" font-weight="700">3</text>
+  </g>
+
+  <!-- Pulse from bell -->
+  <circle cx="260" cy="130" r="50" fill="none" stroke="#ef4444" stroke-width="0.8" opacity="0.15">
+    <animate attributeName="r" values="50;70;50" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.15;0;0.15" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Threshold rules -->
+  <g filter="url(#fa-glow)">
+    <rect x="30" y="182" width="220" height="180" rx="10" fill="#1a1744" stroke="#f59e0b" stroke-width="1"/>
+  </g>
+  <text x="140" y="206" text-anchor="middle" fill="#f59e0b" font-size="10" font-family="system-ui" font-weight="600">Alert Rules</text>
+
+  <!-- Rule items -->
+  <rect x="44" y="218" width="192" height="28" rx="5" fill="#0f0a2e" stroke="#ef4444" stroke-width="0.5" opacity="0.6"/>
+  <circle cx="58" cy="232" r="4" fill="#ef4444" opacity="0.6"/>
+  <text x="68" y="235" fill="#fca5a5" font-size="7" font-family="system-ui">CPU &gt; 90% for 5min</text>
+  <text x="228" y="235" text-anchor="end" fill="#ef4444" font-size="7" font-family="system-ui">CRITICAL</text>
+
+  <rect x="44" y="252" width="192" height="28" rx="5" fill="#0f0a2e" stroke="#f59e0b" stroke-width="0.5" opacity="0.6"/>
+  <circle cx="58" cy="266" r="4" fill="#f59e0b" opacity="0.6"/>
+  <text x="68" y="269" fill="#fcd34d" font-size="7" font-family="system-ui">Memory &gt; 80% for 10min</text>
+  <text x="228" y="269" text-anchor="end" fill="#f59e0b" font-size="7" font-family="system-ui">WARNING</text>
+
+  <rect x="44" y="286" width="192" height="28" rx="5" fill="#0f0a2e" stroke="#f59e0b" stroke-width="0.5" opacity="0.6"/>
+  <circle cx="58" cy="300" r="4" fill="#f59e0b" opacity="0.6"/>
+  <text x="68" y="303" fill="#fcd34d" font-size="7" font-family="system-ui">Disk &gt; 85%</text>
+  <text x="228" y="303" text-anchor="end" fill="#f59e0b" font-size="7" font-family="system-ui">WARNING</text>
+
+  <rect x="44" y="320" width="192" height="28" rx="5" fill="#0f0a2e" stroke="#818cf8" stroke-width="0.5" opacity="0.6"/>
+  <circle cx="58" cy="334" r="4" fill="#818cf8" opacity="0.6"/>
+  <text x="68" y="337" fill="#a5b4fc" font-size="7" font-family="system-ui">Server offline &gt; 2min</text>
+  <text x="228" y="337" text-anchor="end" fill="#818cf8" font-size="7" font-family="system-ui">INFO</text>
+
+  <!-- Notification channels -->
+  <g filter="url(#fa-glow)">
+    <rect x="270" y="182" width="220" height="180" rx="10" fill="#1a1744" stroke="#a78bfa" stroke-width="1"/>
+  </g>
+  <text x="380" y="206" text-anchor="middle" fill="#a78bfa" font-size="10" font-family="system-ui" font-weight="600">Notifications</text>
+
+  <!-- Email channel -->
+  <rect x="284" y="218" width="192" height="36" rx="5" fill="#0f0a2e" opacity="0.6"/>
+  <rect x="292" y="224" width="24" height="24" rx="4" fill="#ef4444" opacity="0.1"/>
+  <text x="304" y="240" text-anchor="middle" fill="#ef4444" font-size="12">✉</text>
+  <text x="324" y="236" fill="#e0e7ff" font-size="8" font-family="system-ui" font-weight="600">Email Alerts</text>
+  <text x="324" y="248" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">Instant delivery to team</text>
+
+  <!-- SMS channel -->
+  <rect x="284" y="260" width="192" height="36" rx="5" fill="#0f0a2e" opacity="0.6"/>
+  <rect x="292" y="266" width="24" height="24" rx="4" fill="#22c55e" opacity="0.1"/>
+  <text x="304" y="282" text-anchor="middle" fill="#22c55e" font-size="12">📱</text>
+  <text x="324" y="278" fill="#e0e7ff" font-size="8" font-family="system-ui" font-weight="600">SMS Alerts</text>
+  <text x="324" y="290" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">Critical alerts via SMS</text>
+
+  <!-- Dashboard channel -->
+  <rect x="284" y="302" width="192" height="36" rx="5" fill="#0f0a2e" opacity="0.6"/>
+  <rect x="292" y="308" width="24" height="24" rx="4" fill="#06b6d4" opacity="0.1"/>
+  <text x="304" y="324" text-anchor="middle" fill="#06b6d4" font-size="12">🔔</text>
+  <text x="324" y="320" fill="#e0e7ff" font-size="8" font-family="system-ui" font-weight="600">Dashboard</text>
+  <text x="324" y="332" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">Real-time in-app alerts</text>
+
+  <!-- Connection arrows from bell to panels -->
+  <path d="M230,155 C200,170 180,182 140,182" fill="none" stroke="#ef4444" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,3"/>
+  <path d="M290,155 C310,170 340,182 380,182" fill="none" stroke="#a78bfa" stroke-width="0.8" opacity="0.3" stroke-dasharray="3,3"/>
+</svg>

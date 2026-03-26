@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <defs>
+    <linearGradient id="hd-bg" x1="0" y1="0" x2="800" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <linearGradient id="hd-card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#312e81" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#1e1b4b" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="hd-accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <linearGradient id="hd-green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="hd-orange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <filter id="hd-glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="hd-shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="12" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <clipPath id="hd-screen"><rect x="80" y="40" width="640" height="370" rx="12"/></clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="450" fill="url(#hd-bg)" rx="16"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.06" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="50" x2="800" y2="50"/><line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="150" x2="800" y2="150"/><line x1="0" y1="200" x2="800" y2="200"/>
+    <line x1="0" y1="250" x2="800" y2="250"/><line x1="0" y1="300" x2="800" y2="300"/>
+    <line x1="0" y1="350" x2="800" y2="350"/><line x1="0" y1="400" x2="800" y2="400"/>
+    <line x1="100" y1="0" x2="100" y2="450"/><line x1="200" y1="0" x2="200" y2="450"/>
+    <line x1="300" y1="0" x2="300" y2="450"/><line x1="400" y1="0" x2="400" y2="450"/>
+    <line x1="500" y1="0" x2="500" y2="450"/><line x1="600" y1="0" x2="600" y2="450"/>
+    <line x1="700" y1="0" x2="700" y2="450"/>
+  </g>
+
+  <!-- Dashboard Window -->
+  <g filter="url(#hd-shadow)">
+    <rect x="80" y="40" width="640" height="370" rx="12" fill="#1a1744" stroke="#312e81" stroke-width="1"/>
+    <!-- Title bar -->
+    <rect x="80" y="40" width="640" height="36" rx="12" fill="#252152"/>
+    <rect x="80" y="64" width="640" height="12" fill="#252152"/>
+    <circle cx="100" cy="58" r="5" fill="#ef4444" opacity="0.8"/>
+    <circle cx="116" cy="58" r="5" fill="#fbbf24" opacity="0.8"/>
+    <circle cx="132" cy="58" r="5" fill="#22c55e" opacity="0.8"/>
+    <text x="400" y="62" text-anchor="middle" fill="#818cf8" font-size="11" font-family="system-ui" font-weight="600">Argus — Server Monitoring Dashboard</text>
+  </g>
+
+  <!-- Sidebar -->
+  <rect x="80" y="76" width="140" height="334" fill="#16133d" rx="0"/>
+  <rect x="80" y="76" width="140" height="334" fill="#16133d"/>
+  <!-- Sidebar items -->
+  <rect x="92" y="90" width="116" height="28" rx="6" fill="#818cf8" opacity="0.15"/>
+  <rect x="104" y="98" width="12" height="12" rx="2" fill="#818cf8"/>
+  <rect x="122" y="101" width="60" height="6" rx="3" fill="#818cf8" opacity="0.8"/>
+  <g opacity="0.4">
+    <rect x="104" y="132" width="12" height="12" rx="2" fill="#a5b4fc"/><rect x="122" y="135" width="50" height="6" rx="3" fill="#a5b4fc"/>
+    <rect x="104" y="158" width="12" height="12" rx="2" fill="#a5b4fc"/><rect x="122" y="161" width="44" height="6" rx="3" fill="#a5b4fc"/>
+    <rect x="104" y="184" width="12" height="12" rx="2" fill="#a5b4fc"/><rect x="122" y="187" width="56" height="6" rx="3" fill="#a5b4fc"/>
+    <rect x="104" y="210" width="12" height="12" rx="2" fill="#a5b4fc"/><rect x="122" y="213" width="38" height="6" rx="3" fill="#a5b4fc"/>
+  </g>
+  <!-- Active indicator -->
+  <rect x="80" y="90" width="3" height="28" rx="1.5" fill="#818cf8"/>
+
+  <!-- Metric Cards Row -->
+  <g>
+    <!-- CPU Card -->
+    <rect x="234" y="86" width="110" height="64" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+    <text x="246" y="104" fill="#a5b4fc" font-size="9" font-family="system-ui">CPU Usage</text>
+    <text x="246" y="128" fill="#818cf8" font-size="22" font-family="system-ui" font-weight="700">42%</text>
+    <rect x="310" y="120" width="24" height="18" rx="4" fill="#22c55e" opacity="0.15"/>
+    <text x="322" y="133" text-anchor="middle" fill="#22c55e" font-size="8" font-family="system-ui">↑3%</text>
+
+    <!-- Memory Card -->
+    <rect x="354" y="86" width="110" height="64" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+    <text x="366" y="104" fill="#a5b4fc" font-size="9" font-family="system-ui">Memory</text>
+    <text x="366" y="128" fill="#34d399" font-size="22" font-family="system-ui" font-weight="700">67%</text>
+    <rect x="430" y="120" width="24" height="18" rx="4" fill="#fbbf24" opacity="0.15"/>
+    <text x="442" y="133" text-anchor="middle" fill="#fbbf24" font-size="8" font-family="system-ui">↑2%</text>
+
+    <!-- Disk Card -->
+    <rect x="474" y="86" width="110" height="64" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+    <text x="486" y="104" fill="#a5b4fc" font-size="9" font-family="system-ui">Disk Usage</text>
+    <text x="486" y="128" fill="#fbbf24" font-size="22" font-family="system-ui" font-weight="700">78%</text>
+
+    <!-- Alerts Card -->
+    <rect x="594" y="86" width="110" height="64" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+    <text x="606" y="104" fill="#a5b4fc" font-size="9" font-family="system-ui">Active Alerts</text>
+    <text x="606" y="128" fill="#ef4444" font-size="22" font-family="system-ui" font-weight="700">3</text>
+    <circle cx="682" cy="112" r="6" fill="#ef4444" opacity="0.2"/>
+    <circle cx="682" cy="112" r="3" fill="#ef4444">
+      <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- Main Chart Area -->
+  <rect x="234" y="162" width="350" height="180" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+  <text x="248" y="182" fill="#c7d2fe" font-size="10" font-family="system-ui" font-weight="600">CPU Usage Over Time</text>
+  <!-- Chart grid lines -->
+  <g opacity="0.1" stroke="#818cf8" stroke-width="0.5">
+    <line x1="248" y1="200" x2="570" y2="200"/><line x1="248" y1="225" x2="570" y2="225"/>
+    <line x1="248" y1="250" x2="570" y2="250"/><line x1="248" y1="275" x2="570" y2="275"/>
+    <line x1="248" y1="300" x2="570" y2="300"/><line x1="248" y1="325" x2="570" y2="325"/>
+  </g>
+  <!-- Area chart fill -->
+  <path d="M248,310 L270,295 L292,285 L314,270 L336,260 L358,240 L380,225 L402,235 L424,220 L446,210 L468,215 L490,200 L512,208 L534,195 L556,205 L570,198 L570,330 L248,330Z" fill="#818cf8" opacity="0.1"/>
+  <!-- Chart line -->
+  <path d="M248,310 L270,295 L292,285 L314,270 L336,260 L358,240 L380,225 L402,235 L424,220 L446,210 L468,215 L490,200 L512,208 L534,195 L556,205 L570,198" stroke="#818cf8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Chart dots -->
+  <circle cx="358" cy="240" r="3" fill="#818cf8" filter="url(#hd-glow)"/>
+  <circle cx="490" cy="200" r="3" fill="#818cf8" filter="url(#hd-glow)"/>
+  <circle cx="534" cy="195" r="3" fill="#818cf8" filter="url(#hd-glow)"/>
+
+  <!-- Server List -->
+  <rect x="594" y="162" width="116" height="180" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+  <text x="606" y="182" fill="#c7d2fe" font-size="10" font-family="system-ui" font-weight="600">Servers</text>
+  <!-- Server items -->
+  <g>
+    <rect x="602" y="192" width="100" height="32" rx="6" fill="#818cf8" opacity="0.08"/>
+    <circle cx="616" cy="208" r="4" fill="#22c55e"/><text x="626" y="205" fill="#e0e7ff" font-size="8" font-family="system-ui">web-prod-01</text>
+    <text x="626" y="215" fill="#6366f1" font-size="7" font-family="system-ui">Online</text>
+  </g>
+  <g>
+    <rect x="602" y="230" width="100" height="32" rx="6" fill="transparent"/>
+    <circle cx="616" cy="246" r="4" fill="#22c55e"/><text x="626" y="243" fill="#a5b4fc" font-size="8" font-family="system-ui">api-prod-02</text>
+    <text x="626" y="253" fill="#6366f1" font-size="7" font-family="system-ui">Online</text>
+  </g>
+  <g>
+    <rect x="602" y="268" width="100" height="32" rx="6" fill="transparent"/>
+    <circle cx="616" cy="284" r="4" fill="#fbbf24"/><text x="626" y="281" fill="#a5b4fc" font-size="8" font-family="system-ui">db-replica</text>
+    <text x="626" y="291" fill="#f59e0b" font-size="7" font-family="system-ui">Warning</text>
+  </g>
+  <g>
+    <rect x="602" y="306" width="100" height="32" rx="6" fill="transparent"/>
+    <circle cx="616" cy="322" r="4" fill="#ef4444"/><text x="626" y="319" fill="#a5b4fc" font-size="8" font-family="system-ui">cache-node</text>
+    <text x="626" y="329" fill="#ef4444" font-size="7" font-family="system-ui">Critical</text>
+  </g>
+
+  <!-- Bottom bar alert indicators -->
+  <g>
+    <rect x="234" y="352" width="470" height="48" rx="8" fill="url(#hd-card)" stroke="#312e81" stroke-width="0.5"/>
+    <circle cx="254" cy="376" r="5" fill="#ef4444" opacity="0.3"/>
+    <circle cx="254" cy="376" r="3" fill="#ef4444">
+      <animate attributeName="r" values="2;4;2" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="1;0.5;1" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <text x="266" y="373" fill="#fca5a5" font-size="8" font-family="system-ui" font-weight="600">ALERT</text>
+    <text x="266" y="384" fill="#a5b4fc" font-size="7.5" font-family="system-ui">CPU on web-prod-01 exceeded 90% threshold · 2 min ago</text>
+    <rect x="630" y="367" width="60" height="20" rx="4" fill="#818cf8" opacity="0.15"/>
+    <text x="660" y="380" text-anchor="middle" fill="#818cf8" font-size="8" font-family="system-ui" font-weight="500">View →</text>
+  </g>
+
+  <!-- Ambient glow effects -->
+  <circle cx="400" cy="250" r="120" fill="#4338ca" opacity="0.03"/>
+  <circle cx="650" cy="120" r="60" fill="#ef4444" opacity="0.04"/>
+</svg>

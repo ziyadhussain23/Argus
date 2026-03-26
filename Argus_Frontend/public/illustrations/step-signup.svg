@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <defs>
+    <linearGradient id="ss-bg" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="ss-glow"><feGaussianBlur stdDeviation="6"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+    <linearGradient id="ss-btn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4338ca"/><stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="400" height="400" fill="url(#ss-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.04" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="100" x2="400" y2="100"/><line x1="0" y1="200" x2="400" y2="200"/><line x1="0" y1="300" x2="400" y2="300"/>
+    <line x1="100" y1="0" x2="100" y2="400"/><line x1="200" y1="0" x2="200" y2="400"/><line x1="300" y1="0" x2="300" y2="400"/>
+  </g>
+
+  <!-- Step number -->
+  <text x="200" y="50" text-anchor="middle" fill="#818cf8" opacity="0.1" font-size="80" font-family="system-ui" font-weight="900">01</text>
+
+  <!-- Form Card -->
+  <g filter="url(#ss-glow)">
+    <rect x="80" y="80" width="240" height="260" rx="14" fill="#1a1744" stroke="#4338ca" stroke-width="1"/>
+  </g>
+
+  <!-- Header -->
+  <text x="200" y="118" text-anchor="middle" fill="#e0e7ff" font-size="16" font-family="system-ui" font-weight="700">Create Account</text>
+  <text x="200" y="136" text-anchor="middle" fill="#818cf8" font-size="9" font-family="system-ui" opacity="0.7">Join Argus in seconds</text>
+
+  <!-- Avatar circle -->
+  <circle cx="200" cy="164" r="20" fill="#312e81" stroke="#818cf8" stroke-width="1"/>
+  <text x="200" y="170" text-anchor="middle" fill="#818cf8" font-size="18" font-family="system-ui">👤</text>
+  <!-- Camera icon -->
+  <circle cx="216" cy="178" r="7" fill="#4338ca" stroke="#1a1744" stroke-width="1.5"/>
+  <text x="216" y="181" text-anchor="middle" fill="white" font-size="7">📷</text>
+
+  <!-- Input: Username -->
+  <rect x="110" y="196" width="180" height="28" rx="6" fill="#0f0a2e" stroke="#312e81" stroke-width="0.8"/>
+  <text x="124" y="214" fill="#6366f1" font-size="9" font-family="system-ui" opacity="0.5">Username</text>
+  <text x="266" y="214" text-anchor="end" fill="#22c55e" font-size="10">✓</text>
+
+  <!-- Input: Email -->
+  <rect x="110" y="232" width="180" height="28" rx="6" fill="#0f0a2e" stroke="#312e81" stroke-width="0.8"/>
+  <text x="124" y="250" fill="#6366f1" font-size="9" font-family="system-ui" opacity="0.5">Email address</text>
+  <text x="266" y="250" text-anchor="end" fill="#a5b4fc" font-size="9">✉</text>
+
+  <!-- Input: Password -->
+  <rect x="110" y="268" width="180" height="28" rx="6" fill="#0f0a2e" stroke="#312e81" stroke-width="0.8"/>
+  <text x="124" y="286" fill="#6366f1" font-size="9" font-family="system-ui" opacity="0.5">●●●●●●●●</text>
+  <text x="266" y="286" text-anchor="end" fill="#a5b4fc" font-size="9">👁</text>
+
+  <!-- Sign Up Button -->
+  <rect x="110" y="306" width="180" height="28" rx="6" fill="url(#ss-btn)"/>
+  <text x="200" y="324" text-anchor="middle" fill="white" font-size="11" font-family="system-ui" font-weight="600">Sign Up →</text>
+
+  <!-- Bottom accent -->
+  <text x="200" y="370" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui" opacity="0.4">Step 1 of 6</text>
+
+  <!-- Decorative dots -->
+  <circle cx="50" cy="360" r="2" fill="#818cf8" opacity="0.15"/>
+  <circle cx="60" cy="370" r="1.5" fill="#818cf8" opacity="0.1"/>
+  <circle cx="340" cy="70" r="2" fill="#818cf8" opacity="0.15"/>
+  <circle cx="355" cy="80" r="1.5" fill="#818cf8" opacity="0.1"/>
+</svg>

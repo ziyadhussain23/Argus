@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <defs>
+    <linearGradient id="af-bg" x1="0" y1="0" x2="800" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <linearGradient id="af-pipe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <filter id="af-glow"><feGaussianBlur stdDeviation="8"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+    <marker id="af-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10Z" fill="#818cf8" opacity="0.6"/>
+    </marker>
+  </defs>
+
+  <rect width="800" height="450" fill="url(#af-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.04" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="112" x2="800" y2="112"/><line x1="0" y1="225" x2="800" y2="225"/><line x1="0" y1="337" x2="800" y2="337"/>
+    <line x1="200" y1="0" x2="200" y2="450"/><line x1="400" y1="0" x2="400" y2="450"/><line x1="600" y1="0" x2="600" y2="450"/>
+  </g>
+
+  <!-- Title -->
+  <text x="400" y="40" text-anchor="middle" fill="#c7d2fe" font-size="14" font-family="system-ui" font-weight="600" letter-spacing="2">DATA PIPELINE ARCHITECTURE</text>
+
+  <!-- Stage 1: Agent -->
+  <g filter="url(#af-glow)">
+    <rect x="30" y="140" width="140" height="170" rx="12" fill="#1a1744" stroke="#22c55e" stroke-width="1.5"/>
+  </g>
+  <text x="100" y="168" text-anchor="middle" fill="#22c55e" font-size="11" font-family="system-ui" font-weight="700">AGENT</text>
+  <text x="100" y="183" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui">PowerShell / Bash</text>
+  <!-- Terminal lines -->
+  <rect x="44" y="196" width="112" height="100" rx="6" fill="#0f0a2e" stroke="#22c55e" stroke-width="0.5" opacity="0.5"/>
+  <text x="50" y="212" fill="#22c55e" font-size="7" font-family="monospace" opacity="0.8">$ argus-agent.ps1</text>
+  <text x="50" y="224" fill="#6ee7b7" font-size="7" font-family="monospace" opacity="0.6">Collecting CPU...</text>
+  <text x="50" y="236" fill="#6ee7b7" font-size="7" font-family="monospace" opacity="0.6">Collecting MEM...</text>
+  <text x="50" y="248" fill="#6ee7b7" font-size="7" font-family="monospace" opacity="0.6">Collecting DISK..</text>
+  <text x="50" y="260" fill="#818cf8" font-size="7" font-family="monospace" opacity="0.7">POST /api/ingest</text>
+  <text x="50" y="272" fill="#22c55e" font-size="7" font-family="monospace">✓ 200 OK</text>
+  <!-- Server icon below -->
+  <rect x="62" y="316" width="76" height="16" rx="3" fill="#22c55e" opacity="0.1" stroke="#22c55e" stroke-width="0.5"/>
+  <text x="100" y="328" text-anchor="middle" fill="#22c55e" font-size="8" font-family="system-ui">Your Server</text>
+
+  <!-- Arrow 1 -->
+  <line x1="180" y1="225" x2="230" y2="225" stroke="#818cf8" stroke-width="1.5" marker-end="url(#af-arrow)" opacity="0.6"/>
+  <text x="205" y="218" text-anchor="middle" fill="#818cf8" font-size="7" font-family="system-ui" opacity="0.6">REST</text>
+  <!-- Data packet animation -->
+  <circle r="3" fill="#818cf8" opacity="0.8">
+    <animateMotion dur="2s" repeatCount="indefinite" path="M180,225 L230,225"/>
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Stage 2: Spring Boot API -->
+  <g filter="url(#af-glow)">
+    <rect x="240" y="120" width="150" height="210" rx="12" fill="#1a1744" stroke="#818cf8" stroke-width="1.5"/>
+  </g>
+  <text x="315" y="148" text-anchor="middle" fill="#818cf8" font-size="11" font-family="system-ui" font-weight="700">SPRING BOOT API</text>
+  <text x="315" y="163" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui">REST + WebSocket</text>
+  <!-- API layers -->
+  <rect x="254" y="176" width="122" height="24" rx="4" fill="#312e81" opacity="0.4"/>
+  <text x="315" y="192" text-anchor="middle" fill="#c7d2fe" font-size="8" font-family="system-ui">Controllers</text>
+  <rect x="254" y="206" width="122" height="24" rx="4" fill="#312e81" opacity="0.3"/>
+  <text x="315" y="222" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui">Services</text>
+  <rect x="254" y="236" width="122" height="24" rx="4" fill="#312e81" opacity="0.2"/>
+  <text x="315" y="252" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui">Repositories</text>
+  <!-- JWT lock -->
+  <rect x="280" y="272" width="70" height="22" rx="4" fill="#fbbf24" opacity="0.08" stroke="#fbbf24" stroke-width="0.5"/>
+  <text x="315" y="287" text-anchor="middle" fill="#fbbf24" font-size="8" font-family="system-ui">🔒 JWT Auth</text>
+  <!-- DB -->
+  <rect x="275" y="302" width="80" height="20" rx="4" fill="#06b6d4" opacity="0.08" stroke="#06b6d4" stroke-width="0.5"/>
+  <text x="315" y="316" text-anchor="middle" fill="#06b6d4" font-size="8" font-family="system-ui">H2 / PostgreSQL</text>
+
+  <!-- Arrow 2 -->
+  <line x1="400" y1="225" x2="450" y2="225" stroke="#818cf8" stroke-width="1.5" marker-end="url(#af-arrow)" opacity="0.6"/>
+  <text x="425" y="218" text-anchor="middle" fill="#818cf8" font-size="7" font-family="system-ui" opacity="0.6">WS</text>
+  <circle r="3" fill="#a78bfa" opacity="0.8">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M400,225 L450,225"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Stage 3: WebSocket -->
+  <g filter="url(#af-glow)">
+    <rect x="460" y="160" width="110" height="130" rx="12" fill="#1a1744" stroke="#a78bfa" stroke-width="1.5"/>
+  </g>
+  <text x="515" y="188" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui" font-weight="700">WEBSOCKET</text>
+  <text x="515" y="203" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui">STOMP / SockJS</text>
+  <!-- Signal waves -->
+  <g opacity="0.6">
+    <path d="M500,230 Q505,220 510,230 Q515,240 520,230" fill="none" stroke="#a78bfa" stroke-width="1.5"/>
+    <path d="M495,245 Q505,225 515,245 Q525,265 535,245" fill="none" stroke="#a78bfa" stroke-width="1" opacity="0.5"/>
+  </g>
+  <text x="515" y="272" text-anchor="middle" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.6">Real-time push</text>
+
+  <!-- Arrow 3 -->
+  <line x1="580" y1="225" x2="630" y2="225" stroke="#818cf8" stroke-width="1.5" marker-end="url(#af-arrow)" opacity="0.6"/>
+  <text x="605" y="218" text-anchor="middle" fill="#818cf8" font-size="7" font-family="system-ui" opacity="0.6">JSON</text>
+  <circle r="3" fill="#c084fc" opacity="0.8">
+    <animateMotion dur="1.8s" repeatCount="indefinite" path="M580,225 L630,225"/>
+    <animate attributeName="opacity" values="0;1;0" dur="1.8s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Stage 4: React Dashboard -->
+  <g filter="url(#af-glow)">
+    <rect x="640" y="140" width="130" height="170" rx="12" fill="#1a1744" stroke="#06b6d4" stroke-width="1.5"/>
+  </g>
+  <text x="705" y="168" text-anchor="middle" fill="#06b6d4" font-size="11" font-family="system-ui" font-weight="700">REACT DASHBOARD</text>
+  <text x="705" y="183" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui">Vite + TypeScript</text>
+  <!-- Mini dashboard -->
+  <rect x="654" y="196" width="102" height="60" rx="6" fill="#0f0a2e" stroke="#06b6d4" stroke-width="0.5" opacity="0.5"/>
+  <rect x="660" y="202" width="42" height="18" rx="3" fill="#818cf8" opacity="0.1"/><text x="681" y="214" text-anchor="middle" fill="#818cf8" font-size="7" font-family="system-ui">42%</text>
+  <rect x="708" y="202" width="42" height="18" rx="3" fill="#22c55e" opacity="0.1"/><text x="729" y="214" text-anchor="middle" fill="#22c55e" font-size="7" font-family="system-ui">67%</text>
+  <polyline points="662,244 672,238 682,240 692,232 702,236 712,228 722,230 732,224 742,226 750,220" fill="none" stroke="#818cf8" stroke-width="1" opacity="0.6"/>
+  <!-- Tech stack -->
+  <rect x="660" y="268" width="40" height="14" rx="3" fill="#06b6d4" opacity="0.1"/>
+  <text x="680" y="278" text-anchor="middle" fill="#06b6d4" font-size="7" font-family="system-ui">shadcn</text>
+  <rect x="706" y="268" width="44" height="14" rx="3" fill="#06b6d4" opacity="0.1"/>
+  <text x="728" y="278" text-anchor="middle" fill="#06b6d4" font-size="7" font-family="system-ui">recharts</text>
+  <rect x="660" y="288" width="90" height="14" rx="3" fill="#06b6d4" opacity="0.1"/>
+  <text x="705" y="298" text-anchor="middle" fill="#06b6d4" font-size="7" font-family="system-ui">framer-motion</text>
+
+  <!-- Bottom labels -->
+  <text x="100" y="400" text-anchor="middle" fill="#6ee7b7" font-size="9" font-family="system-ui" opacity="0.5">Collect</text>
+  <text x="315" y="400" text-anchor="middle" fill="#818cf8" font-size="9" font-family="system-ui" opacity="0.5">Process & Store</text>
+  <text x="515" y="400" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="system-ui" opacity="0.5">Stream</text>
+  <text x="705" y="400" text-anchor="middle" fill="#06b6d4" font-size="9" font-family="system-ui" opacity="0.5">Visualize</text>
+
+  <!-- Flow line at bottom -->
+  <line x1="60" y1="420" x2="740" y2="420" stroke="url(#af-pipe)" stroke-width="1" opacity="0.15"/>
+</svg>

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <defs>
+    <linearGradient id="sr-bg" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="sr-glow"><feGaussianBlur stdDeviation="6"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+  </defs>
+
+  <rect width="400" height="400" fill="url(#sr-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.04" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="100" x2="400" y2="100"/><line x1="0" y1="200" x2="400" y2="200"/><line x1="0" y1="300" x2="400" y2="300"/>
+    <line x1="100" y1="0" x2="100" y2="400"/><line x1="200" y1="0" x2="200" y2="400"/><line x1="300" y1="0" x2="300" y2="400"/>
+  </g>
+
+  <!-- Step number -->
+  <text x="200" y="50" text-anchor="middle" fill="#f59e0b" opacity="0.08" font-size="80" font-family="system-ui" font-weight="900">03</text>
+
+  <!-- Terminal window -->
+  <g filter="url(#sr-glow)">
+    <rect x="50" y="65" width="300" height="260" rx="12" fill="#0f0a2e" stroke="#f59e0b" stroke-width="1"/>
+  </g>
+
+  <!-- Title bar -->
+  <rect x="50" y="65" width="300" height="26" rx="12" fill="#1a1744"/>
+  <rect x="50" y="79" width="300" height="12" fill="#1a1744"/>
+  <circle cx="68" cy="78" r="4" fill="#ef4444" opacity="0.7"/><circle cx="82" cy="78" r="4" fill="#f59e0b" opacity="0.7"/><circle cx="96" cy="78" r="4" fill="#22c55e" opacity="0.7"/>
+  <text x="200" y="82" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui" opacity="0.5">argus-agent.ps1 — PowerShell</text>
+
+  <!-- Terminal content -->
+  <text x="66" y="108" fill="#818cf8" font-size="8" font-family="monospace">PS C:\argus\agent&gt;</text>
+  <text x="174" y="108" fill="#f59e0b" font-size="8" font-family="monospace">.\run-agent.ps1</text>
+
+  <text x="66" y="126" fill="#22c55e" font-size="8" font-family="monospace">╔══════════════════════════════╗</text>
+  <text x="66" y="140" fill="#22c55e" font-size="8" font-family="monospace">║   ARGUS AGENT v1.0 STARTED  ║</text>
+  <text x="66" y="154" fill="#22c55e" font-size="8" font-family="monospace">╚══════════════════════════════╝</text>
+
+  <text x="66" y="174" fill="#a5b4fc" font-size="8" font-family="monospace">[INFO] Connecting to API...</text>
+  <text x="66" y="188" fill="#22c55e" font-size="8" font-family="monospace">[OK]   Connected to localhost:8080</text>
+  <text x="66" y="202" fill="#a5b4fc" font-size="8" font-family="monospace">[INFO] Registering server token...</text>
+  <text x="66" y="216" fill="#22c55e" font-size="8" font-family="monospace">[OK]   Token verified ✓</text>
+
+  <text x="66" y="236" fill="#f59e0b" font-size="8" font-family="monospace">─── Collecting Metrics ───</text>
+  <text x="66" y="254" fill="#a5b4fc" font-size="8" font-family="monospace">[CPU]    42%  ▓▓▓▓▓▓▓▓░░░░░░░</text>
+  <text x="66" y="268" fill="#a5b4fc" font-size="8" font-family="monospace">[MEM]    67%  ▓▓▓▓▓▓▓▓▓▓░░░░░</text>
+  <text x="66" y="282" fill="#a5b4fc" font-size="8" font-family="monospace">[DISK]   78%  ▓▓▓▓▓▓▓▓▓▓▓▓░░░</text>
+  <text x="66" y="296" fill="#22c55e" font-size="8" font-family="monospace">[POST]   → /api/metrics  200 OK</text>
+
+  <!-- Blinking cursor -->
+  <rect x="66" y="309" width="6" height="10" fill="#f59e0b" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;0;0.8" dur="1.2s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Bottom label -->
+  <text x="200" y="370" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui" opacity="0.4">Step 3 of 6</text>
+
+  <!-- Corner decorations -->
+  <circle cx="36" cy="340" r="2" fill="#f59e0b" opacity="0.15"/>
+  <circle cx="364" cy="55" r="2" fill="#f59e0b" opacity="0.15"/>
+</svg>

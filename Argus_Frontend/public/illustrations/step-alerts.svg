@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <defs>
+    <linearGradient id="al-bg" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="al-glow"><feGaussianBlur stdDeviation="6"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+  </defs>
+
+  <rect width="400" height="400" fill="url(#al-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.04" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="100" x2="400" y2="100"/><line x1="0" y1="200" x2="400" y2="200"/><line x1="0" y1="300" x2="400" y2="300"/>
+    <line x1="100" y1="0" x2="100" y2="400"/><line x1="200" y1="0" x2="200" y2="400"/><line x1="300" y1="0" x2="300" y2="400"/>
+  </g>
+
+  <!-- Step number -->
+  <text x="200" y="50" text-anchor="middle" fill="#ef4444" opacity="0.08" font-size="80" font-family="system-ui" font-weight="900">05</text>
+
+  <!-- Alert panel -->
+  <g filter="url(#al-glow)">
+    <rect x="50" y="58" width="300" height="278" rx="12" fill="#1a1744" stroke="#ef4444" stroke-width="1"/>
+  </g>
+
+  <!-- Header -->
+  <text x="200" y="86" text-anchor="middle" fill="#e0e7ff" font-size="13" font-family="system-ui" font-weight="700">Alert Configuration</text>
+
+  <!-- Alert rule builder -->
+  <rect x="66" y="100" width="268" height="70" rx="8" fill="#0f0a2e" stroke="#ef4444" stroke-width="0.5" opacity="0.6"/>
+  <text x="82" y="118" fill="#ef4444" font-size="8" font-family="system-ui" font-weight="600">⚠ ALERT RULE: CPU Critical</text>
+  
+  <text x="82" y="136" fill="#a5b4fc" font-size="8" font-family="system-ui">When</text>
+  <rect x="104" y="127" width="36" height="14" rx="3" fill="#312e81"/><text x="122" y="137" text-anchor="middle" fill="#818cf8" font-size="7" font-family="system-ui">CPU %</text>
+  <text x="148" y="136" fill="#a5b4fc" font-size="8" font-family="system-ui">exceeds</text>
+  <rect x="182" y="127" width="30" height="14" rx="3" fill="#ef4444" opacity="0.15"/><text x="197" y="137" text-anchor="middle" fill="#ef4444" font-size="8" font-family="monospace">90%</text>
+  <text x="218" y="136" fill="#a5b4fc" font-size="8" font-family="system-ui">for</text>
+  <rect x="234" y="127" width="36" height="14" rx="3" fill="#312e81"/><text x="252" y="137" text-anchor="middle" fill="#818cf8" font-size="7" font-family="system-ui">5 min</text>
+
+  <text x="82" y="158" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">Notify via: Email + SMS + Dashboard</text>
+
+  <!-- Active alerts list -->
+  <text x="78" y="190" fill="#e0e7ff" font-size="9" font-family="system-ui" font-weight="600">Active Alerts</text>
+
+  <!-- Alert 1: Critical -->
+  <rect x="66" y="198" width="268" height="34" rx="6" fill="#ef4444" opacity="0.06" stroke="#ef4444" stroke-width="0.5"/>
+  <circle cx="82" cy="215" r="5" fill="#ef4444" opacity="0.3"/>
+  <circle cx="82" cy="215" r="3" fill="#ef4444">
+    <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite"/>
+  </circle>
+  <text x="94" y="212" fill="#fca5a5" font-size="8" font-family="system-ui" font-weight="600">CRITICAL — CPU 96% on prod-web-01</text>
+  <text x="94" y="225" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">2 min ago • Escalated to team</text>
+
+  <!-- Alert 2: Warning -->
+  <rect x="66" y="238" width="268" height="34" rx="6" fill="#f59e0b" opacity="0.06" stroke="#f59e0b" stroke-width="0.5"/>
+  <circle cx="82" cy="255" r="3" fill="#f59e0b"/>
+  <text x="94" y="252" fill="#fcd34d" font-size="8" font-family="system-ui" font-weight="600">WARNING — Disk 85% on prod-db-01</text>
+  <text x="94" y="265" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">15 min ago • Email sent</text>
+
+  <!-- Alert 3: Resolved -->
+  <rect x="66" y="278" width="268" height="34" rx="6" fill="#22c55e" opacity="0.04" stroke="#22c55e" stroke-width="0.3"/>
+  <circle cx="82" cy="295" r="3" fill="#22c55e" opacity="0.5"/>
+  <text x="94" y="292" fill="#86efac" font-size="8" font-family="system-ui">RESOLVED — Memory spike on staging</text>
+  <text x="94" y="305" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">1 hour ago • Auto-resolved</text>
+
+  <!-- Notification methods -->
+  <g transform="translate(80, 346)">
+    <rect x="0" y="0" width="50" height="20" rx="4" fill="#ef4444" opacity="0.1" stroke="#ef4444" stroke-width="0.5"/>
+    <text x="25" y="14" text-anchor="middle" fill="#ef4444" font-size="7" font-family="system-ui">✉ Email</text>
+
+    <rect x="58" y="0" width="44" height="20" rx="4" fill="#a78bfa" opacity="0.1" stroke="#a78bfa" stroke-width="0.5"/>
+    <text x="80" y="14" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="system-ui">📱 SMS</text>
+
+    <rect x="110" y="0" width="58" height="20" rx="4" fill="#06b6d4" opacity="0.1" stroke="#06b6d4" stroke-width="0.5"/>
+    <text x="139" y="14" text-anchor="middle" fill="#06b6d4" font-size="7" font-family="system-ui">🔔 In-App</text>
+
+    <rect x="176" y="0" width="60" height="20" rx="4" fill="#f59e0b" opacity="0.1" stroke="#f59e0b" stroke-width="0.5"/>
+    <text x="206" y="14" text-anchor="middle" fill="#f59e0b" font-size="7" font-family="system-ui">📊 Webhook</text>
+  </g>
+
+  <!-- Bottom label -->
+  <text x="200" y="392" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui" opacity="0.4">Step 5 of 6</text>
+</svg>
