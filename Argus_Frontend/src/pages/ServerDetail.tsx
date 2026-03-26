@@ -336,7 +336,7 @@ export default function ServerDetail() {
     const { title, data, chartType: ct, setChartType: setCt, chartColor, setChartColor: setCc, defaultColor } = opts;
     if (data.length === 0) return null;
     const color = chartColor || defaultColor;
-    const fillColor = chartColor ? `${chartColor.replace(')', ' / 0.3)')}` : `${defaultColor.replace(')', ' / 0.3)'}`;
+    const fillColor = chartColor ? `${chartColor.replace(')', ' / 0.3)')}` : `${defaultColor.replace(')', ' / 0.3)')}`;
     const tooltipStyle = { backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' };
     const axisStroke = 'hsl(var(--muted-foreground))';
     const gridStroke = 'hsl(var(--border))';
