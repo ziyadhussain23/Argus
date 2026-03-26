@@ -1,0 +1,27 @@
+{
+  "name": "Argus - Server Monitoring",
+  "short_name": "Argus",
+  "description": "Real-time server monitoring dashboard with intelligent alerts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0a2e",
+  "theme_color": "#4338ca",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ]
+}

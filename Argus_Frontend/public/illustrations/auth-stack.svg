@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" fill="none">
+  <defs>
+    <linearGradient id="as-bg" x1="0" y1="0" x2="520" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="as-glow"><feGaussianBlur stdDeviation="8"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+  </defs>
+
+  <rect width="520" height="520" fill="url(#as-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.04" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="130" x2="520" y2="130"/><line x1="0" y1="260" x2="520" y2="260"/><line x1="0" y1="390" x2="520" y2="390"/>
+    <line x1="130" y1="0" x2="130" y2="520"/><line x1="260" y1="0" x2="260" y2="520"/><line x1="390" y1="0" x2="390" y2="520"/>
+  </g>
+
+  <!-- Technology Stack title -->
+  <text x="260" y="40" text-anchor="middle" fill="#c7d2fe" font-size="12" font-family="system-ui" font-weight="600" letter-spacing="2">TECHNOLOGY STACK</text>
+
+  <!-- Main stack layers (isometric-ish) -->
+
+  <!-- Layer 1: Database (bottom) -->
+  <g filter="url(#as-glow)">
+    <rect x="100" y="380" width="320" height="60" rx="10" fill="#1a1744" stroke="#06b6d4" stroke-width="1.2"/>
+  </g>
+  <text x="260" y="406" text-anchor="middle" fill="#06b6d4" font-size="11" font-family="system-ui" font-weight="600">Database Layer</text>
+  <text x="260" y="424" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui" opacity="0.5">H2 / PostgreSQL + JPA Repositories</text>
+  <!-- DB icons -->
+  <circle cx="140" cy="410" r="10" fill="#06b6d4" opacity="0.08" stroke="#06b6d4" stroke-width="0.5"/>
+  <text x="140" y="414" text-anchor="middle" fill="#06b6d4" font-size="8">💾</text>
+  <circle cx="380" cy="410" r="10" fill="#06b6d4" opacity="0.08" stroke="#06b6d4" stroke-width="0.5"/>
+  <text x="380" y="414" text-anchor="middle" fill="#06b6d4" font-size="8">💾</text>
+
+  <!-- Layer 2: Backend -->
+  <g filter="url(#as-glow)">
+    <rect x="80" y="295" width="360" height="70" rx="10" fill="#1a1744" stroke="#22c55e" stroke-width="1.2"/>
+  </g>
+  <text x="260" y="322" text-anchor="middle" fill="#22c55e" font-size="11" font-family="system-ui" font-weight="600">Backend — Spring Boot</text>
+  <text x="260" y="340" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui" opacity="0.5">REST API + WebSocket + JWT Security + Services</text>
+  <!-- Java icons -->
+  <rect x="106" y="316" width="46" height="18" rx="3" fill="#22c55e" opacity="0.06"/>
+  <text x="129" y="328" text-anchor="middle" fill="#22c55e" font-size="7" font-family="system-ui">Java 17</text>
+  <rect x="160" y="316" width="46" height="18" rx="3" fill="#22c55e" opacity="0.06"/>
+  <text x="183" y="328" text-anchor="middle" fill="#22c55e" font-size="7" font-family="system-ui">Maven</text>
+  <rect x="314" y="316" width="46" height="18" rx="3" fill="#22c55e" opacity="0.06"/>
+  <text x="337" y="328" text-anchor="middle" fill="#22c55e" font-size="7" font-family="system-ui">STOMP</text>
+  <rect x="368" y="316" width="50" height="18" rx="3" fill="#22c55e" opacity="0.06"/>
+  <text x="393" y="328" text-anchor="middle" fill="#22c55e" font-size="7" font-family="system-ui">SockJS</text>
+
+  <!-- Layer 3: API / Communication -->
+  <g filter="url(#as-glow)">
+    <rect x="100" y="220" width="320" height="60" rx="10" fill="#1a1744" stroke="#a78bfa" stroke-width="1.2"/>
+  </g>
+  <text x="260" y="246" text-anchor="middle" fill="#a78bfa" font-size="11" font-family="system-ui" font-weight="600">API Gateway</text>
+  <text x="260" y="264" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui" opacity="0.5">REST endpoints + Real-time WebSocket streams</text>
+  <!-- API icons -->
+  <rect x="126" y="250" width="38" height="16" rx="3" fill="#a78bfa" opacity="0.06"/>
+  <text x="145" y="261" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="system-ui">REST</text>
+  <rect x="170" y="250" width="24" height="16" rx="3" fill="#a78bfa" opacity="0.06"/>
+  <text x="182" y="261" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="system-ui">WS</text>
+  <rect x="326" y="250" width="30" height="16" rx="3" fill="#a78bfa" opacity="0.06"/>
+  <text x="341" y="261" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="system-ui">JWT</text>
+  <rect x="362" y="250" width="38" height="16" rx="3" fill="#a78bfa" opacity="0.06"/>
+  <text x="381" y="261" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="system-ui">CORS</text>
+
+  <!-- Layer 4: Frontend (top) -->
+  <g filter="url(#as-glow)">
+    <rect x="60" y="130" width="400" height="75" rx="10" fill="#1a1744" stroke="#818cf8" stroke-width="1.2"/>
+  </g>
+  <text x="260" y="158" text-anchor="middle" fill="#818cf8" font-size="11" font-family="system-ui" font-weight="600">Frontend — React + TypeScript</text>
+  <text x="260" y="176" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui" opacity="0.5">Vite + shadcn/ui + Recharts + Framer Motion</text>
+  <!-- Tech badges -->
+  <rect x="90" y="182" width="34" height="14" rx="3" fill="#818cf8" opacity="0.06"/>
+  <text x="107" y="192" text-anchor="middle" fill="#818cf8" font-size="6" font-family="system-ui">React</text>
+  <rect x="130" y="182" width="24" height="14" rx="3" fill="#818cf8" opacity="0.06"/>
+  <text x="142" y="192" text-anchor="middle" fill="#818cf8" font-size="6" font-family="system-ui">TS</text>
+  <rect x="160" y="182" width="28" height="14" rx="3" fill="#818cf8" opacity="0.06"/>
+  <text x="174" y="192" text-anchor="middle" fill="#818cf8" font-size="6" font-family="system-ui">Vite</text>
+  <rect x="194" y="182" width="40" height="14" rx="3" fill="#818cf8" opacity="0.06"/>
+  <text x="214" y="192" text-anchor="middle" fill="#818cf8" font-size="6" font-family="system-ui">shadcn</text>
+  <rect x="310" y="182" width="48" height="14" rx="3" fill="#818cf8" opacity="0.06"/>
+  <text x="334" y="192" text-anchor="middle" fill="#818cf8" font-size="6" font-family="system-ui">recharts</text>
+  <rect x="364" y="182" width="68" height="14" rx="3" fill="#818cf8" opacity="0.06"/>
+  <text x="398" y="192" text-anchor="middle" fill="#818cf8" font-size="6" font-family="system-ui">framer-motion</text>
+
+  <!-- Layer 5: Agent (left side) -->
+  <g filter="url(#as-glow)">
+    <rect x="30" y="62" width="180" height="54" rx="8" fill="#1a1744" stroke="#f59e0b" stroke-width="1"/>
+  </g>
+  <text x="120" y="84" text-anchor="middle" fill="#f59e0b" font-size="10" font-family="system-ui" font-weight="600">Monitoring Agent</text>
+  <text x="120" y="100" text-anchor="middle" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">PowerShell / Bash collector</text>
+
+  <!-- Layer 5b: Notifications (right side) -->
+  <g filter="url(#as-glow)">
+    <rect x="310" y="62" width="180" height="54" rx="8" fill="#1a1744" stroke="#ef4444" stroke-width="1"/>
+  </g>
+  <text x="400" y="84" text-anchor="middle" fill="#ef4444" font-size="10" font-family="system-ui" font-weight="600">Notifications</text>
+  <text x="400" y="100" text-anchor="middle" fill="#a5b4fc" font-size="7" font-family="system-ui" opacity="0.5">Email + SMS + In-App</text>
+
+  <!-- Vertical connection lines between layers -->
+  <line x1="260" y1="116" x2="260" y2="130" stroke="#818cf8" stroke-width="1" opacity="0.2" stroke-dasharray="3,3"/>
+  <line x1="260" y1="205" x2="260" y2="220" stroke="#a78bfa" stroke-width="1" opacity="0.2" stroke-dasharray="3,3"/>
+  <line x1="260" y1="280" x2="260" y2="295" stroke="#22c55e" stroke-width="1" opacity="0.2" stroke-dasharray="3,3"/>
+  <line x1="260" y1="365" x2="260" y2="380" stroke="#06b6d4" stroke-width="1" opacity="0.2" stroke-dasharray="3,3"/>
+  <!-- Agent to frontend -->
+  <path d="M120,116 L120,130" fill="none" stroke="#f59e0b" stroke-width="0.8" opacity="0.2" stroke-dasharray="3,3"/>
+  <!-- Notifications to frontend -->
+  <path d="M400,116 L400,130" fill="none" stroke="#ef4444" stroke-width="0.8" opacity="0.2" stroke-dasharray="3,3"/>
+
+  <!-- Bottom label -->
+  <text x="260" y="476" text-anchor="middle" fill="#818cf8" font-size="9" font-family="system-ui" opacity="0.3">Full-Stack Architecture</text>
+  <text x="260" y="494" text-anchor="middle" fill="#a5b4fc" font-size="8" font-family="system-ui" opacity="0.2">Argus Server Monitoring Platform</text>
+</svg>

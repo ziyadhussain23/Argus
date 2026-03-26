@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none">
+  <defs>
+    <linearGradient id="es-bg" x1="0" y1="0" x2="400" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="es-glow"><feGaussianBlur stdDeviation="6"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+  </defs>
+
+  <rect width="400" height="300" fill="url(#es-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.03" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="75" x2="400" y2="75"/><line x1="0" y1="150" x2="400" y2="150"/><line x1="0" y1="225" x2="400" y2="225"/>
+    <line x1="100" y1="0" x2="100" y2="300"/><line x1="200" y1="0" x2="200" y2="300"/><line x1="300" y1="0" x2="300" y2="300"/>
+  </g>
+
+  <!-- Empty server rack (ghosted) -->
+  <g opacity="0.15">
+    <rect x="140" y="50" width="120" height="160" rx="8" fill="none" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <!-- Empty slots -->
+    <rect x="156" y="66" width="88" height="20" rx="4" fill="none" stroke="#818cf8" stroke-width="0.5" stroke-dasharray="3,3"/>
+    <rect x="156" y="92" width="88" height="20" rx="4" fill="none" stroke="#818cf8" stroke-width="0.5" stroke-dasharray="3,3"/>
+    <rect x="156" y="118" width="88" height="20" rx="4" fill="none" stroke="#818cf8" stroke-width="0.5" stroke-dasharray="3,3"/>
+    <rect x="156" y="144" width="88" height="20" rx="4" fill="none" stroke="#818cf8" stroke-width="0.5" stroke-dasharray="3,3"/>
+    <rect x="156" y="170" width="88" height="20" rx="4" fill="none" stroke="#818cf8" stroke-width="0.5" stroke-dasharray="3,3"/>
+  </g>
+
+  <!-- Center icon: server with + -->
+  <g filter="url(#es-glow)">
+    <circle cx="200" cy="120" r="32" fill="#1a1744" stroke="#818cf8" stroke-width="1"/>
+  </g>
+  <!-- Server icon -->
+  <rect x="186" y="106" width="28" height="8" rx="2" fill="#818cf8" opacity="0.2" stroke="#818cf8" stroke-width="0.5"/>
+  <rect x="186" y="118" width="28" height="8" rx="2" fill="#818cf8" opacity="0.15" stroke="#818cf8" stroke-width="0.5"/>
+  <rect x="186" y="130" width="28" height="8" rx="2" fill="#818cf8" opacity="0.1" stroke="#818cf8" stroke-width="0.5"/>
+  <!-- Plus sign -->
+  <line x1="200" y1="98" x2="200" y2="88" stroke="#818cf8" stroke-width="1.5" opacity="0.5"/>
+  <line x1="195" y1="93" x2="205" y2="93" stroke="#818cf8" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Text -->
+  <text x="200" y="180" text-anchor="middle" fill="#c7d2fe" font-size="13" font-family="system-ui" font-weight="600">No Servers Yet</text>
+  <text x="200" y="200" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui" opacity="0.5">Add your first server to start monitoring</text>
+
+  <!-- CTA button outline -->
+  <rect x="140" y="220" width="120" height="30" rx="6" fill="#4338ca" opacity="0.1" stroke="#818cf8" stroke-width="0.8"/>
+  <text x="200" y="240" text-anchor="middle" fill="#818cf8" font-size="10" font-family="system-ui" font-weight="600">+ Add Server</text>
+
+  <!-- Decorative dots -->
+  <circle cx="60" cy="240" r="2" fill="#818cf8" opacity="0.08"/>
+  <circle cx="70" cy="260" r="1.5" fill="#818cf8" opacity="0.06"/>
+  <circle cx="340" cy="60" r="2" fill="#818cf8" opacity="0.08"/>
+  <circle cx="330" cy="45" r="1.5" fill="#818cf8" opacity="0.06"/>
+</svg>

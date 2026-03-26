@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" fill="none">
+  <defs>
+    <linearGradient id="ea-bg" x1="0" y1="0" x2="400" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#0f0a2e"/>
+    </linearGradient>
+    <filter id="ea-glow"><feGaussianBlur stdDeviation="6"/><feComposite in="SourceGraphic" in2="blur" operator="over"/></filter>
+  </defs>
+
+  <rect width="400" height="300" fill="url(#ea-bg)" rx="16"/>
+
+  <!-- Grid -->
+  <g opacity="0.03" stroke="#818cf8" stroke-width="0.5">
+    <line x1="0" y1="75" x2="400" y2="75"/><line x1="0" y1="150" x2="400" y2="150"/><line x1="0" y1="225" x2="400" y2="225"/>
+    <line x1="100" y1="0" x2="100" y2="300"/><line x1="200" y1="0" x2="200" y2="300"/><line x1="300" y1="0" x2="300" y2="300"/>
+  </g>
+
+  <!-- Ghosted alert bell -->
+  <g opacity="0.12">
+    <circle cx="200" cy="100" r="40" fill="none" stroke="#818cf8" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <!-- Bell outline -->
+    <path d="M184,92 C184,76 216,76 216,92 L220,110 L180,110Z" fill="none" stroke="#818cf8" stroke-width="1" stroke-dasharray="3,3"/>
+    <rect x="192" y="110" width="16" height="3" rx="1" fill="none" stroke="#818cf8" stroke-width="0.5" stroke-dasharray="2,2"/>
+  </g>
+
+  <!-- Center icon: bell with checkmark -->
+  <g filter="url(#ea-glow)">
+    <circle cx="200" cy="100" r="30" fill="#1a1744" stroke="#22c55e" stroke-width="1"/>
+  </g>
+  <!-- Bell shape -->
+  <path d="M189,94 C189,83 211,83 211,94 L214,106 L186,106Z" fill="#22c55e" opacity="0.1" stroke="#22c55e" stroke-width="0.8"/>
+  <rect x="194" y="106" width="12" height="2" rx="1" fill="#22c55e" opacity="0.3"/>
+  <!-- Checkmark -->
+  <circle cx="214" cy="86" r="8" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="0.8"/>
+  <path d="M210,86 L213,89 L219,83" fill="none" stroke="#22c55e" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Text -->
+  <text x="200" y="160" text-anchor="middle" fill="#c7d2fe" font-size="13" font-family="system-ui" font-weight="600">All Clear!</text>
+  <text x="200" y="180" text-anchor="middle" fill="#a5b4fc" font-size="9" font-family="system-ui" opacity="0.5">No active alerts — your servers are healthy</text>
+
+  <!-- Mini healthy indicators -->
+  <g transform="translate(115, 200)">
+    <rect x="0" y="0" width="170" height="22" rx="4" fill="#22c55e" opacity="0.04" stroke="#22c55e" stroke-width="0.3"/>
+    <circle cx="14" cy="11" r="3" fill="#22c55e" opacity="0.4"/>
+    <text x="24" y="15" fill="#22c55e" font-size="7" font-family="system-ui" opacity="0.5">All 6 servers operating normally</text>
+  </g>
+
+  <g transform="translate(115, 228)">
+    <rect x="0" y="0" width="170" height="22" rx="4" fill="#22c55e" opacity="0.04" stroke="#22c55e" stroke-width="0.3"/>
+    <circle cx="14" cy="11" r="3" fill="#818cf8" opacity="0.4"/>
+    <text x="24" y="15" fill="#818cf8" font-size="7" font-family="system-ui" opacity="0.5">4 alert rules active and watching</text>
+  </g>
+
+  <!-- Decorative dots -->
+  <circle cx="60" cy="250" r="2" fill="#22c55e" opacity="0.08"/>
+  <circle cx="340" cy="50" r="2" fill="#22c55e" opacity="0.08"/>
+</svg>

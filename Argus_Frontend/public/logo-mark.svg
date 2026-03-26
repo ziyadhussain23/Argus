@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="lm-bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338ca"/><stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <filter id="lm-glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Transparent background — just the monitor icon -->
+  <!-- Monitor frame -->
+  <rect x="96" y="88" width="320" height="220" rx="28" fill="#1e1b4b" stroke="url(#lm-bg)" stroke-width="6"/>
+  <!-- Screen -->
+  <rect x="116" y="108" width="280" height="180" rx="14" fill="#0f0a2e"/>
+  <!-- Heartbeat -->
+  <polyline
+    points="136,208 168,208 192,208 212,172 236,244 260,152 284,232 308,188 328,204 356,204 380,204"
+    fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#lm-glow)"/>
+  <circle cx="380" cy="204" r="10" fill="#34d399"/>
+  <circle cx="380" cy="204" r="18" fill="#34d399" opacity="0.2"/>
+  <!-- Stand -->
+  <rect x="220" y="312" width="72" height="28" rx="4" fill="#1e1b4b"/>
+  <rect x="184" y="340" width="144" height="18" rx="9" fill="#1e1b4b" stroke="url(#lm-bg)" stroke-width="3"/>
+  <!-- Metric dots -->
+  <circle cx="200" cy="400" r="14" fill="#34d399" opacity="0.85"/>
+  <circle cx="240" cy="400" r="14" fill="#a78bfa" opacity="0.85"/>
+  <circle cx="280" cy="400" r="14" fill="#fbbf24" opacity="0.85"/>
+  <circle cx="320" cy="400" r="14" fill="#60a5fa" opacity="0.85"/>
+</svg>

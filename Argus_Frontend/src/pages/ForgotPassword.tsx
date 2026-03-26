@@ -7,7 +7,8 @@ import { authApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Activity, Loader2, ArrowLeft, Mail, User } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, User } from 'lucide-react';
+import { ArgusLogo } from '@/components/ArgusLogo';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -91,10 +92,7 @@ export default function ForgotPassword() {
             >
                 <div className="text-center">
                     <Link to="/" className="inline-flex items-center gap-2 mb-6 hover:opacity-80 transition-opacity">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                            <Activity className="h-5 w-5 text-primary-foreground" />
-                        </div>
-                        <span className="font-display text-2xl font-bold">Argus</span>
+                        <ArgusLogo size="md" />
                     </Link>
                     <h2 className="text-3xl font-display font-bold tracking-tight text-foreground">
                         Forgot password?

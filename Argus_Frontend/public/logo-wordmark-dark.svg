@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" fill="none">
+  <defs>
+    <linearGradient id="wmd-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4338ca"/><stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <filter id="wmd-glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Icon -->
+  <rect x="8" y="16" width="88" height="88" rx="20" fill="url(#wmd-bg)"/>
+  <rect x="24" y="30" width="56" height="38" rx="6" fill="#1e1b4b" stroke="#a5b4fc" stroke-width="1.2"/>
+  <polyline points="30,52 38,52 42,44 48,60 54,38 60,56 66,48 72,52 76,52" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#wmd-glow)"/>
+  <circle cx="76" cy="52" r="2.5" fill="#34d399"/>
+  <rect x="46" y="70" width="16" height="5" rx="1.5" fill="#1e1b4b"/>
+  <rect x="40" y="77" width="28" height="4" rx="2" fill="#1e1b4b"/>
+  <!-- Wordmark - dark text for light backgrounds -->
+  <text x="120" y="76" fill="#1e1b4b" font-size="54" font-weight="800" font-family="system-ui, -apple-system, sans-serif" letter-spacing="-1">Argus</text>
+</svg>

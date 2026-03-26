@@ -7,9 +7,6 @@ import nightswatch.argus.dto.request.RegisterRequest;
 import nightswatch.argus.dto.response.AuthResponse;
 import nightswatch.argus.entity.User;
 import nightswatch.argus.exception.BadRequestException;
-import nightswatch.argus.repository.NotificationRepository;
-import nightswatch.argus.repository.SmsLogRepository;
-import nightswatch.argus.repository.UserNotificationPreferenceRepository;
 import nightswatch.argus.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,9 +23,6 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
-    private final UserNotificationPreferenceRepository userNotificationPreferenceRepository;
-    private final NotificationRepository notificationRepository;
-    private final SmsLogRepository smsLogRepository;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -237,21 +231,14 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        emailService.sendPasswordChangedEmail(user);
         log.info("Password changed successfully for user: {}", user.getUsername());
     }
 
     @Transactional
     public void deleteAccount(User user) {
-        User persistedUser = userRepository.findById(user.getId())
-                .orElseThrow(() -> new BadRequestException("User not found"));
-
-        smsLogRepository.deleteByUserId(persistedUser.getId());
-        notificationRepository.deleteByRecipientId(persistedUser.getId());
-        userNotificationPreferenceRepository.deleteByUserId(persistedUser.getId());
-        userRepository.delete(persistedUser);
-
-        log.info("Deleted account for user: {}", persistedUser.getUsername());
+        log.info("Deleting account for user: {}", user.getUsername());
+        userRepository.delete(user);
+        log.info("Account deleted successfully for user: {}", user.getUsername());
     }
 
     private AuthResponse buildAuthResponse(User user, String token) {
