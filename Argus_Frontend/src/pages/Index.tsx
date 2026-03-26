@@ -9,6 +9,7 @@ import {
   CheckCircle2, Cpu, HardDrive, Wifi, BarChart3, ArrowRight,
   Play, Clock, Globe, Book, Code, Terminal, AlertTriangle
 } from 'lucide-react';
+import { ArgusLogo } from '@/components/ArgusLogo';
 import {
   Accordion,
   AccordionContent,
@@ -86,10 +87,7 @@ export default function Index() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-              <Activity className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-display text-xl font-bold">Argus</span>
+            <ArgusLogo size="sm" />
           </Link>
 
           <NavigationMenu className="hidden md:flex">
@@ -735,9 +733,9 @@ export default function Index() {
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
-              { step: '01', title: 'Create Account', desc: 'Sign up for free and access your dashboard' },
-              { step: '02', title: 'Add Servers', desc: 'Deploy our agent with a single command' },
-              { step: '03', title: 'Start Monitoring', desc: 'Get real-time insights and alerts' },
+              { step: '01', title: 'Create Account', desc: 'Sign up for free and access your dashboard', img: '/illustrations/step-signup.svg' },
+              { step: '02', title: 'Add Servers', desc: 'Deploy our agent with a single command', img: '/illustrations/step-add-server.svg' },
+              { step: '03', title: 'Start Monitoring', desc: 'Get real-time insights and alerts', img: '/illustrations/step-metrics.svg' },
             ].map((item, i) => (
               <motion.div
                 key={i}
@@ -747,6 +745,7 @@ export default function Index() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.2 }}
               >
+                <img src={item.img} alt={item.title} className="mx-auto w-40 h-40 mb-4 rounded-xl opacity-90" />
                 <div className="font-display text-7xl font-bold text-primary/20 mb-4">{item.step}</div>
                 <h3 className="font-display text-xl font-semibold text-foreground mb-3">{item.title}</h3>
                 <p className="text-muted-foreground">{item.desc}</p>
@@ -776,6 +775,16 @@ export default function Index() {
             <p className="text-muted-foreground text-lg">
               Reliable technologies powering Argus
             </p>
+          </motion.div>
+
+          {/* Architecture Flow Illustration */}
+          <motion.div
+            className="mb-12 flex justify-center"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <img src="/illustrations/architecture-flow.svg" alt="Argus architecture flow" className="w-full max-w-3xl rounded-2xl border border-border/50" />
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -938,10 +947,7 @@ export default function Index() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                  <Activity className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="font-display text-xl font-bold">Argus</span>
+                <ArgusLogo size="sm" />
               </div>
               <p className="text-muted-foreground text-sm">
                 Real-time server monitoring for modern infrastructure.
