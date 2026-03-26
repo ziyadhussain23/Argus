@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Activity, Eye, EyeOff, Loader2, Server, Bell, Shield, Zap,
+  Eye, EyeOff, Loader2, Server, Bell, Shield, Zap,
   LineChart, Globe, Clock, Users, ChevronRight, CheckCircle2,
-  Cpu, HardDrive, Wifi, BarChart3, ArrowRight, ArrowLeft
+  Cpu, HardDrive, Wifi, BarChart3, ArrowRight, ArrowLeft, Activity
 } from 'lucide-react';
+import { ArgusLogo, ArgusLogoGlow } from '@/components/ArgusLogo';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -160,17 +161,21 @@ export default function Register() {
 
           <div className="max-w-lg text-center relative z-10">
             <motion.div
+              className="mb-6 flex justify-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <img src="/illustrations/auth-stack.svg" alt="Technology stack" className="w-56 h-56 rounded-2xl" />
+            </motion.div>
+
+            <motion.div
               className="mb-8 flex justify-center"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", duration: 0.8 }}
             >
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-primary/20 blur-3xl" />
-                <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
-                  <Activity className="h-12 w-12 text-primary" />
-                </div>
-              </div>
+              <ArgusLogoGlow size="lg" showText={false} />
             </motion.div>
 
             <motion.h2
@@ -251,12 +256,9 @@ export default function Register() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex items-center gap-3 mb-8">
-              <Link to="/" className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary">
-                  <Activity className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <span className="font-display text-2xl font-bold">Argus</span>
+            <div className="mb-8">
+              <Link to="/" className="inline-flex">
+                <ArgusLogo size="md" />
               </Link>
             </div>
 
@@ -554,10 +556,7 @@ export default function Register() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                <Activity className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="font-display text-xl font-bold">Argus</span>
+              <ArgusLogo size="sm" />
             </div>
             <div className="flex gap-8 text-sm text-muted-foreground">
               <Link to="/about" className="hover:text-primary transition-colors">About</Link>
