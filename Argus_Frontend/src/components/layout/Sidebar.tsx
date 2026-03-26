@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Settings,
   LogOut,
-  Activity,
   HelpCircle,
   MessageCircle,
   Info,
@@ -17,6 +16,7 @@ import {
   FileText,
   User as UserIcon,
 } from 'lucide-react';
+import { ArgusLogo } from '@/components/ArgusLogo';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -72,8 +72,8 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
       {/* Logo - Links to Home */}
       <div className="flex h-16 items-center justify-between border-b border-border px-6">
         <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <Activity className="h-5 w-5 text-primary-foreground" />
+          <div className="relative">
+            <ArgusLogo size="xs" showText={true} />
             {/* WebSocket Status Dot */}
             <span
               className={cn(
@@ -82,9 +82,9 @@ export function Sidebar({ isOpen, toggle }: SidebarProps) {
                 wsStatus === 'connecting' && 'bg-amber-500 animate-pulse',
                 wsStatus === 'disconnected' && 'bg-red-500'
               )}
+              style={{ right: '-2px', bottom: '-2px' }}
             />
           </div>
-          <span className="font-display text-xl font-bold text-foreground">Argus</span>
         </Link>
         <div className="flex items-center gap-1">
           <TooltipProvider>
