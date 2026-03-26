@@ -219,6 +219,28 @@ public class UserService {
         emailService.sendPasswordChangedEmail(user);
     }
 
+    @Transactional
+    public void changePassword(User user, String currentPassword, String newPassword) {
+        log.info("Changing password for user: {}", user.getUsername());
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        log.info("Password changed successfully for user: {}", user.getUsername());
+    }
+
+    @Transactional
+    public void deleteAccount(User user) {
+        log.info("Deleting account for user: {}", user.getUsername());
+        userRepository.delete(user);
+        log.info("Account deleted successfully for user: {}", user.getUsername());
+    }
+
     private AuthResponse buildAuthResponse(User user, String token) {
         return AuthResponse.builder()
                 .token(token)
