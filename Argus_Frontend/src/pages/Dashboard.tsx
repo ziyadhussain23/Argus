@@ -158,8 +158,9 @@ export default function Dashboard() {
       ...(primaryServerId
         ? [{
           topic: `/topic/servers/${primaryServerId}/metrics`,
-          onMessage: (incoming: Metric[]) => {
-            const incomingCpu = incoming.filter((metric) => metric.metricType === 'CPU_USAGE');
+          onMessage: (incoming: Metric | Metric[]) => {
+            const metricsList = Array.isArray(incoming) ? incoming : [incoming];
+            const incomingCpu = metricsList.filter((metric) => metric.metricType === 'CPU_USAGE');
             if (incomingCpu.length === 0) return;
 
             setHistoryData((prev) => {
