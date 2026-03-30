@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface ServerRepository extends JpaRepository<Server, Long> {
     
     List<Server> findByOwner(User owner);
+
+    List<Server> findByOwnerAndStatus(User owner, Server.ServerStatus status);
     
     Optional<Server> findByAgentKey(String agentKey);
     
