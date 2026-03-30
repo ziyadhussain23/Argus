@@ -107,9 +107,18 @@ public class AlertService {
                 .toList();
     }
 
+    public List<AlertRule> getEnabledAlertRules(User owner) {
+        return alertRuleRepository.findEnabledByOwnerId(owner.getId());
+    }
+
     public List<AlertResponse> getActiveAlerts(User owner) {
-        return alertRepository.findByUserId(owner.getId()).stream()
-                .filter(a -> a.getStatus() == Alert.AlertStatus.ACTIVE)
+        return alertRepository.findOpenByUserId(owner.getId()).stream()
+            .map(AlertResponse::fromEntity)
+            .toList();
+    }
+
+    public List<AlertResponse> getAlertsByStatus(User owner, Alert.AlertStatus status) {
+        return alertRepository.findByUserIdAndStatus(owner.getId(), status).stream()
                 .map(AlertResponse::fromEntity)
                 .toList();
     }
