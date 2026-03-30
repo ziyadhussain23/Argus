@@ -15,7 +15,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,9 +33,32 @@ public class AlertEvaluationService {
 
     @Transactional
     public void evaluateMetrics(Server server, List<Metric> metrics) {
+        if (metrics == null || metrics.isEmpty()) {
+            return;
+        }
+
+        List<Metric.MetricType> metricTypes = metrics.stream()
+                .map(Metric::getMetricType)
+                .distinct()
+                .toList();
+
+        if (metricTypes.isEmpty()) {
+            return;
+        }
+
+        List<AlertRule> enabledRules = alertRuleRepository.findEnabledByServerAndMetricTypes(server, metricTypes);
+        if (enabledRules.isEmpty()) {
+            return;
+        }
+
+        Map<Metric.MetricType, List<AlertRule>> rulesByType = enabledRules.stream()
+                .collect(Collectors.groupingBy(AlertRule::getMetricType));
+
         for (Metric metric : metrics) {
-            List<AlertRule> rules = alertRuleRepository.findByServerAndMetricType(server, metric.getMetricType());
-            
+            List<AlertRule> rules = rulesByType.get(metric.getMetricType());
+            if (rules == null || rules.isEmpty()) {
+                continue;
+            }
             for (AlertRule rule : rules) {
                 evaluateRule(rule, metric);
             }
@@ -51,17 +76,40 @@ public class AlertEvaluationService {
                 }
             }
             
-            // Check cooldown to avoid alert spam
+            // If there is already an open alert for this rule (ACTIVE or ACKNOWLEDGED),
+            // update it instead of creating duplicates.
+            Optional<Alert> existingOpenAlert = alertRepository.findLatestOpenByRule(rule);
+            if (existingOpenAlert.isPresent()) {
+                updateOpenAlert(existingOpenAlert.get(), rule, metric);
+                return;
+            }
+
+            // Check cooldown to avoid alert spam (only applies when creating a new alert)
             if (isInCooldown(rule)) {
                 log.debug("Rule {} is in cooldown, skipping alert", rule.getName());
                 return;
             }
-            
+
             triggerAlert(rule, metric);
         } else {
             // Auto-resolve if condition is no longer met
             autoResolveAlert(rule);
         }
+    }
+
+    private void updateOpenAlert(Alert alert, AlertRule rule, Metric metric) {
+        String title = buildAlertTitle(rule);
+        String message = buildAlertMessage(rule, metric);
+
+        alert.setTitle(title);
+        alert.setMessage(message);
+        alert.setMetricValue(metric.getValue());
+        alert.setThresholdValue(rule.getThresholdValue());
+
+        Alert saved = alertRepository.save(alert);
+
+        updateServerStatus(rule.getServer(), rule.getSeverity());
+        publishAlertUpdate(saved);
     }
 
     private boolean isDurationConditionMet(AlertRule rule, Metric currentMetric) {
@@ -88,26 +136,8 @@ public class AlertEvaluationService {
 
     @Transactional
     public void triggerAlert(AlertRule rule, Metric metric) {
-        String title = String.format("[%s] %s on %s", 
-                rule.getSeverity(), 
-                rule.getName(), 
-                rule.getServer().getName());
-        
-        String message = String.format(
-                "Alert triggered: %s\n" +
-                "Server: %s (%s)\n" +
-                "Metric: %s\n" +
-                "Current Value: %.2f %s\n" +
-                "Threshold: %s %.2f",
-                rule.getName(),
-                rule.getServer().getName(),
-                rule.getServer().getHostAddress(),
-                rule.getMetricType(),
-                metric.getValue(),
-                metric.getUnit() != null ? metric.getUnit() : "",
-                rule.getConditionOperator(),
-                rule.getThresholdValue()
-        );
+        String title = buildAlertTitle(rule);
+        String message = buildAlertMessage(rule, metric);
         
         Alert alert = Alert.builder()
                 .server(rule.getServer())
@@ -140,7 +170,7 @@ public class AlertEvaluationService {
     }
 
     private void autoResolveAlert(AlertRule rule) {
-        Optional<Alert> activeAlert = alertRepository.findLatestActiveByRule(rule);
+        Optional<Alert> activeAlert = alertRepository.findLatestOpenByRule(rule);
         
         if (activeAlert.isPresent()) {
             Alert alert = activeAlert.get();
@@ -170,7 +200,7 @@ public class AlertEvaluationService {
             return;
         }
 
-        List<Alert> activeAlerts = alertRepository.findByServerAndStatus(server, Alert.AlertStatus.ACTIVE);
+        List<Alert> activeAlerts = alertRepository.findOpenByServer(server);
         boolean hasCritical = activeAlerts.stream().anyMatch(a -> a.getSeverity() == AlertRule.AlertSeverity.CRITICAL);
         boolean hasWarning = activeAlerts.stream().anyMatch(a -> a.getSeverity() == AlertRule.AlertSeverity.WARNING);
 
@@ -187,5 +217,30 @@ public class AlertEvaluationService {
         AlertResponse payload = AlertResponse.fromEntity(alert);
         messagingTemplate.convertAndSend("/topic/alerts/server/" + alert.getServer().getId(), payload);
         messagingTemplate.convertAndSend("/topic/alerts/user/" + alert.getServer().getOwner().getId(), payload);
+    }
+
+    private String buildAlertTitle(AlertRule rule) {
+        return String.format("[%s] %s on %s",
+                rule.getSeverity(),
+                rule.getName(),
+                rule.getServer().getName());
+    }
+
+    private String buildAlertMessage(AlertRule rule, Metric metric) {
+        return String.format(
+                "Alert triggered: %s\n" +
+                        "Server: %s (%s)\n" +
+                        "Metric: %s\n" +
+                        "Current Value: %.2f %s\n" +
+                        "Threshold: %s %.2f",
+                rule.getName(),
+                rule.getServer().getName(),
+                rule.getServer().getHostAddress(),
+                rule.getMetricType(),
+                metric.getValue(),
+                metric.getUnit() != null ? metric.getUnit() : "",
+                rule.getConditionOperator(),
+                rule.getThresholdValue()
+        );
     }
 }
