@@ -146,27 +146,16 @@ export default function HistoryPage() {
                 ? servers
                 : servers.filter(s => s.id.toString() === selectedServer);
 
-            // Fetch metrics for selected servers
-            const metricsPromises = targetServers.map(server =>
-                Promise.all([
-                    serversApi.getMetrics(server.id, { type: 'CPU_USAGE' }).catch(() => ({ success: false, data: [] })),
-                    serversApi.getMetrics(server.id, { type: 'MEMORY_USAGE' }).catch(() => ({ success: false, data: [] })),
-                    serversApi.getMetrics(server.id, { type: 'DISK_USAGE' }).catch(() => ({ success: false, data: [] })),
-                    serversApi.getMetrics(server.id, { type: 'LOAD_AVERAGE' }).catch(() => ({ success: false, data: [] })),
-                ])
-            );
-
-            const allResults = await Promise.all(metricsPromises);
-
-            // Calculate time range
+            // Calculate time range first so we can pass to API
             const now = Date.now();
             let startTime: number;
+            let endTime: number = now;
             let bucketSize: number;
             let maxDataPoints: number;
 
             if (timeFrame === 'custom' && customDateFrom && customDateTo) {
                 startTime = customDateFrom.getTime();
-                const endTime = customDateTo.getTime();
+                endTime = customDateTo.getTime();
                 const rangeMs = endTime - startTime;
                 // Dynamic bucket: aim for ~120 data points
                 bucketSize = Math.max(60000, Math.floor(rangeMs / 120));
@@ -184,6 +173,27 @@ export default function HistoryPage() {
                 bucketSize = timeConfig.bucketMinutes * 60 * 1000;
                 maxDataPoints = timeConfig.dataPoints;
             }
+
+            // Format dates for API (local time ISO format for backend LocalDateTime)
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            const toLocalISO = (ms: number) => {
+                const d = new Date(ms);
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            };
+            const startISO = toLocalISO(startTime);
+            const endISO = toLocalISO(endTime);
+
+            // Fetch metrics for selected servers with time range
+            const metricsPromises = targetServers.map(server =>
+                Promise.all([
+                    serversApi.getMetrics(server.id, { type: 'CPU_USAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'MEMORY_USAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'DISK_USAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'LOAD_AVERAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                ])
+            );
+
+            const allResults = await Promise.all(metricsPromises);
 
             // Aggregate metrics by timestamp buckets
             const bucketMap = new Map<number, { cpu: number[]; memory: number[]; disk: number[]; load: number[] }>();
@@ -219,8 +229,11 @@ export default function HistoryPage() {
                     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 } else if (timeFrame === '24h') {
                     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                } else if (timeFrame === '7d') {
+                    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString([], { hour: '2-digit' })}`;
                 } else {
-                    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    // 30d: show date + abbreviated time to avoid duplicate labels for 6-hour buckets
+                    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString([], { hour: '2-digit' })}`;
                 }
             };
 
