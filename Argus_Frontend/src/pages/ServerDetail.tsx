@@ -117,11 +117,12 @@ export default function ServerDetail() {
 
     return [
       {
-        topic: `/topic/metrics/server/${serverId}`,
-        onMessage: (incoming: Metric[]) => {
+        topic: `/topic/servers/${serverId}/metrics`,
+        onMessage: (incoming: Metric | Metric[]) => {
+          const metricsList = Array.isArray(incoming) ? incoming : [incoming];
           setMetrics((prev) => {
             const next = { ...prev };
-            incoming.forEach((metric) => {
+            metricsList.forEach((metric) => {
               const list = [...(next[metric.metricType] || []), metric];
               if (list.length > 60) {
                 list.splice(0, list.length - 60);
@@ -133,7 +134,7 @@ export default function ServerDetail() {
 
           setLatestMetrics((prev) => {
             const next = { ...prev };
-            incoming.forEach((metric) => {
+            metricsList.forEach((metric) => {
               next[metric.metricType] = metric;
             });
             return next;
