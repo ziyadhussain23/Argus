@@ -19,10 +19,19 @@ public interface AlertRuleRepository extends JpaRepository<AlertRule, Long> {
     
     @Query("SELECT ar FROM AlertRule ar WHERE ar.isEnabled = true")
     List<AlertRule> findAllEnabled();
+
+    @Query("SELECT ar FROM AlertRule ar WHERE ar.server.owner.id = :ownerId AND ar.isEnabled = true")
+    List<AlertRule> findEnabledByOwnerId(@Param("ownerId") Long ownerId);
     
     @Query("SELECT ar FROM AlertRule ar WHERE ar.server = :server AND ar.metricType = :type AND ar.isEnabled = true")
     List<AlertRule> findByServerAndMetricType(
         @Param("server") Server server,
         @Param("type") Metric.MetricType type
+    );
+
+    @Query("SELECT ar FROM AlertRule ar WHERE ar.server = :server AND ar.metricType IN :types AND ar.isEnabled = true")
+    List<AlertRule> findEnabledByServerAndMetricTypes(
+            @Param("server") Server server,
+            @Param("types") List<Metric.MetricType> types
     );
 }
