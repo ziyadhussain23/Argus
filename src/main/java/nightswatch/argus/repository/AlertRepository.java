@@ -15,6 +15,11 @@ import java.util.Optional;
 
 @Repository
 public interface AlertRepository extends JpaRepository<Alert, Long> {
+
+    interface ActiveAlertCountByServer {
+        Long getServerId();
+        Long getCount();
+    }
     
     List<Alert> findByServerOrderByTriggeredAtDesc(Server server);
     
@@ -30,6 +35,14 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
         List<Alert> results = findLatestActiveByRuleWithLimit(rule, Pageable.ofSize(1));
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
+
+    @Query("SELECT a FROM Alert a WHERE a.alertRule = :rule AND a.status IN ('ACTIVE', 'ACKNOWLEDGED') ORDER BY a.triggeredAt DESC")
+    List<Alert> findLatestOpenByRuleWithLimit(@Param("rule") AlertRule rule, Pageable pageable);
+
+    default Optional<Alert> findLatestOpenByRule(AlertRule rule) {
+        List<Alert> results = findLatestOpenByRuleWithLimit(rule, Pageable.ofSize(1));
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
     
     @Query("SELECT a FROM Alert a WHERE a.alertRule = :rule AND a.triggeredAt > :since ORDER BY a.triggeredAt DESC")
     List<Alert> findRecentByRuleWithLimit(@Param("rule") AlertRule rule, @Param("since") LocalDateTime since, Pageable pageable);
@@ -39,8 +52,23 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
     
-    @Query("SELECT COUNT(a) FROM Alert a WHERE a.server.owner.id = :userId AND a.status = 'ACTIVE'")
+    @Query("SELECT COUNT(a) FROM Alert a WHERE a.server.owner.id = :userId AND a.status IN ('ACTIVE', 'ACKNOWLEDGED')")
     Long countActiveAlertsByUser(@Param("userId") Long userId);
+
+    @Query("SELECT a.server.id AS serverId, COUNT(a) AS count " +
+            "FROM Alert a " +
+            "WHERE a.server.owner.id = :userId AND a.status IN ('ACTIVE', 'ACKNOWLEDGED') " +
+            "GROUP BY a.server.id")
+    List<ActiveAlertCountByServer> countActiveAlertsByServerForUser(@Param("userId") Long userId);
+
+    @Query("SELECT COUNT(a) FROM Alert a WHERE a.server.id = :serverId AND a.status IN ('ACTIVE', 'ACKNOWLEDGED')")
+    Long countActiveAlertsByServer(@Param("serverId") Long serverId);
+
+    @Query("SELECT a FROM Alert a WHERE a.server = :server AND a.status IN ('ACTIVE', 'ACKNOWLEDGED')")
+    List<Alert> findOpenByServer(@Param("server") Server server);
+
+    @Query("SELECT a FROM Alert a WHERE a.server.owner.id = :userId AND a.status IN ('ACTIVE', 'ACKNOWLEDGED') ORDER BY a.triggeredAt DESC")
+    List<Alert> findOpenByUserId(@Param("userId") Long userId);
     
     @Query("SELECT a FROM Alert a WHERE a.server.owner.id = :userId ORDER BY a.triggeredAt DESC")
     List<Alert> findByUserId(@Param("userId") Long userId);
