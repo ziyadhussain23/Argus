@@ -46,10 +46,20 @@ export default function Login() {
   const { toast } = useToast();
 
   const validateUsername = (value: string) => {
-    if (!value.trim()) return 'Username is required';
-    if (value.length < 3) return 'Username must be at least 3 characters';
-    if (value.length > 50) return 'Username must be 50 characters or fewer';
-    if (!/^[a-zA-Z0-9_.-]+$/.test(value)) return 'Username can only contain letters, numbers, underscores, dots, and hyphens';
+    const v = value.trim();
+    if (!v) return 'Email or username is required';
+
+    // If it looks like an email, validate as email.
+    if (v.includes('@')) {
+      if (v.length > 254) return 'Email must be 254 characters or fewer';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Please enter a valid email address';
+      return '';
+    }
+
+    // Otherwise validate as username.
+    if (v.length < 3) return 'Username must be at least 3 characters';
+    if (v.length > 50) return 'Username must be 50 characters or fewer';
+    if (!/^[a-zA-Z0-9_.-]+$/.test(v)) return 'Username can only contain letters, numbers, underscores, dots, and hyphens';
     return '';
   };
 
@@ -83,7 +93,7 @@ export default function Login() {
       } else {
         toast({
           title: 'Login failed',
-          description: 'Invalid username or password.',
+          description: 'Invalid email/username or password.',
           variant: 'destructive',
         });
       }
@@ -210,16 +220,16 @@ export default function Login() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">Email or Username</Label>
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder="Enter your email or username"
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); if (usernameError) setUsernameError(validateUsername(e.target.value)); }}
                   required
                   minLength={3}
-                  maxLength={50}
+                  maxLength={254}
                   className={`h-12 ${usernameError ? 'border-destructive' : ''}`}
                 />
                 {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
