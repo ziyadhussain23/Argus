@@ -10,6 +10,7 @@ import nightswatch.argus.dto.response.ServerResponse;
 import nightswatch.argus.entity.Metric;
 import nightswatch.argus.entity.Server;
 import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.BadRequestException;
 import nightswatch.argus.repository.ServerRepository;
 import nightswatch.argus.service.MetricService;
 import nightswatch.argus.service.ServerService;
@@ -42,6 +43,22 @@ public class ServerController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<ServerResponse>>> getServers(@AuthenticationPrincipal User user) {
         List<ServerResponse> servers = serverService.getServersByOwner(user);
+        return ResponseEntity.ok(ApiResponse.success(servers));
+    }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<ApiResponse<List<ServerResponse>>> getServersByStatus(
+            @PathVariable String status,
+            @AuthenticationPrincipal User user) {
+
+        Server.ServerStatus parsedStatus;
+        try {
+            parsedStatus = Server.ServerStatus.valueOf(status.trim().toUpperCase());
+        } catch (Exception ex) {
+            throw new BadRequestException("Invalid server status: " + status);
+        }
+
+        List<ServerResponse> servers = serverService.getServersByOwnerAndStatus(user, parsedStatus);
         return ResponseEntity.ok(ApiResponse.success(servers));
     }
 
