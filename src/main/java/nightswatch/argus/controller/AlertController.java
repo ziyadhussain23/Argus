@@ -7,7 +7,9 @@ import nightswatch.argus.dto.request.AlertRuleUpdateRequest;
 import nightswatch.argus.dto.response.AlertResponse;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.entity.AlertRule;
+import nightswatch.argus.entity.Alert;
 import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.BadRequestException;
 import nightswatch.argus.service.AlertService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,6 +41,14 @@ public class AlertController {
             @AuthenticationPrincipal User user) {
         
         List<AlertRule> rules = alertService.getAlertRulesByServer(serverId, user);
+        return ResponseEntity.ok(ApiResponse.success(rules));
+    }
+
+    @GetMapping("/rules/enabled")
+    public ResponseEntity<ApiResponse<List<AlertRule>>> getEnabledAlertRules(
+            @AuthenticationPrincipal User user) {
+
+        List<AlertRule> rules = alertService.getEnabledAlertRules(user);
         return ResponseEntity.ok(ApiResponse.success(rules));
     }
 
@@ -78,6 +88,22 @@ public class AlertController {
             @AuthenticationPrincipal User user) {
         
         List<AlertResponse> alerts = alertService.getActiveAlerts(user);
+        return ResponseEntity.ok(ApiResponse.success(alerts));
+    }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<ApiResponse<List<AlertResponse>>> getAlertsByStatus(
+            @PathVariable String status,
+            @AuthenticationPrincipal User user) {
+
+        Alert.AlertStatus parsedStatus;
+        try {
+            parsedStatus = Alert.AlertStatus.valueOf(status.trim().toUpperCase());
+        } catch (Exception ex) {
+            throw new BadRequestException("Invalid alert status: " + status);
+        }
+
+        List<AlertResponse> alerts = alertService.getAlertsByStatus(user, parsedStatus);
         return ResponseEntity.ok(ApiResponse.success(alerts));
     }
 
