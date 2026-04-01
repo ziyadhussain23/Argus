@@ -85,7 +85,7 @@ export default function Index() {
     <div className="min-h-screen overflow-x-hidden">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <ArgusLogo size="sm" />
           </Link>
@@ -154,7 +154,7 @@ export default function Index() {
       </header>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-24 relative overflow-hidden">
+      <section className="pt-24 sm:pt-32 pb-24 relative overflow-hidden">
         {/* Animated background */}
         <div className="absolute inset-0">
           {/* Blobs */}
@@ -207,7 +207,7 @@ export default function Index() {
           ))}
         </div>
 
-        <div className="container mx-auto px-6 relative z-10">
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left - Content */}
             <motion.div
@@ -225,7 +225,7 @@ export default function Index() {
                 Server Monitoring Reimagined
               </motion.div>
 
-              <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight">
+              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight">
                 Monitor Your{' '}
                 <span className="text-gradient-primary">Infrastructure</span>{' '}
                 in Real-Time
@@ -370,8 +370,8 @@ export default function Index() {
 
       {/* Stats Section */}
       <section className="py-16 bg-card border-y border-border">
-        <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
             {stats.map((stat, i) => (
               <motion.div
                 key={i}
@@ -396,7 +396,7 @@ export default function Index() {
 
       {/* THREE CORE FEATURES (Project Related Animations) - NEW ADDITION */}
       <section className="py-32 relative overflow-hidden">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-24"
             initial={{ opacity: 0, y: 30 }}
@@ -656,7 +656,7 @@ export default function Index() {
 
       {/* Features Section */}
       <section className="py-24">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -716,7 +716,7 @@ export default function Index() {
 
       {/* How It Works */}
       <section className="py-24 bg-gradient-to-b from-background to-card/50">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -762,7 +762,7 @@ export default function Index() {
 
       {/* Tech Stack */}
       <section className="py-24 bg-card border-y border-border">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -811,7 +811,7 @@ export default function Index() {
 
       {/* FAQ Section */}
       <section className="py-24 bg-background">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -843,7 +843,7 @@ export default function Index() {
 
       {/* CTA Section */}
       <section className="py-24 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="max-w-3xl mx-auto text-center"
             initial={{ opacity: 0, y: 30 }}
@@ -874,7 +874,7 @@ export default function Index() {
 
       {/* Developer Resources Section */}
       <section className="py-24 bg-card border-t border-border">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <motion.div
             className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
@@ -943,7 +943,7 @@ export default function Index() {
 
       {/* Footer */}
       <footer className="py-12 bg-card border-t border-border">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">

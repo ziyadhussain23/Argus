@@ -163,7 +163,7 @@ export default function FAQ() {
         <div className="min-h-screen">
             {/* Header */}
             <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -197,7 +197,7 @@ export default function FAQ() {
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-16 relative overflow-hidden">
+            <section className="pt-24 sm:pt-32 pb-16 relative overflow-hidden">
                 <div className="absolute inset-0">
                     <motion.div
                         className="absolute top-20 right-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"
@@ -206,7 +206,7 @@ export default function FAQ() {
                     />
                 </div>
 
-                <div className="container mx-auto px-6 relative z-10">
+                <div className="container mx-auto px-4 sm:px-6 relative z-10">
                     <motion.div
                         className="max-w-3xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -231,7 +231,7 @@ export default function FAQ() {
                         </p>
 
                         {/* Search */}
-                        <div className="relative max-w-xl mx-auto">
+                        <div className="relative w-full max-w-xl mx-auto">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
                                 type="text"
@@ -247,8 +247,8 @@ export default function FAQ() {
 
             {/* FAQ Content */}
             <section className="py-16">
-                <div className="container mx-auto px-6">
-                    <div className="grid lg:grid-cols-4 gap-8">
+                <div className="container mx-auto px-4 sm:px-6">
+                    <div className="grid lg:grid-cols-4 gap-4 sm:gap-8">
                         {/* Categories Sidebar */}
                         <motion.div
                             className="lg:col-span-1"
@@ -342,7 +342,7 @@ export default function FAQ() {
 
             {/* Still Have Questions CTA */}
             <section className="py-24 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-t border-border">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="max-w-3xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -377,7 +377,7 @@ export default function FAQ() {
 
             {/* Footer */}
             <footer className="py-12 bg-card border-t border-border">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="flex items-center gap-3">
                             <ArgusLogo size="sm" />

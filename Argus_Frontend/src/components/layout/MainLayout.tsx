@@ -143,7 +143,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Mobile/Toggle Header for small screens or when collapsed */}
       <div className={cn(
-        "fixed top-0 z-30 flex items-center p-4 transition-all duration-300",
+        "fixed top-0 z-30 flex items-center p-3 sm:p-4 transition-all duration-300",
         isSidebarOpen ? "left-64" : "left-0"
       )}>
         <Button
@@ -157,10 +157,10 @@ export function MainLayout({ children }: MainLayoutProps) {
       </div>
 
       <main className={cn(
-        "transition-all duration-300 min-h-screen pt-16",
+        "transition-all duration-300 min-h-screen pt-14 sm:pt-16",
         isSidebarOpen ? "pl-64" : "pl-0"
       )}>
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
           {breadcrumbs.length > 1 && (
             <Breadcrumb className="mb-4">
               <BreadcrumbList>

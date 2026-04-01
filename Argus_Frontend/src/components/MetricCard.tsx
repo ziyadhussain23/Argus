@@ -37,11 +37,11 @@ export function MetricCard({
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <div className="flex items-baseline gap-1">
-            <span className="font-display text-3xl font-bold text-foreground">
+            <span className="font-display text-2xl sm:text-3xl font-bold text-foreground">
               {value}
             </span>
             {unit && (
-              <span className="text-lg text-muted-foreground">{unit}</span>
+              <span className="text-base sm:text-lg text-muted-foreground">{unit}</span>
             )}
           </div>
         </div>

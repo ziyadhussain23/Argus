@@ -39,6 +39,7 @@ import {
     Server,
     Palette,
     Download,
+    Upload,
     FileImage,
     FileText,
     FileSpreadsheet,
@@ -62,7 +63,7 @@ import { format } from 'date-fns';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 type ChartType = 'line' | 'area' | 'bar';
-type MetricType = 'CPU_USAGE' | 'MEMORY_USAGE' | 'DISK_USAGE' | 'LOAD_AVERAGE';
+type MetricType = 'CPU_USAGE' | 'MEMORY_USAGE' | 'DISK_USAGE' | 'LOAD_AVERAGE' | 'NETWORK_IN' | 'NETWORK_OUT' | 'PROCESS_COUNT' | 'UPTIME';
 type TimeFrame = '1h' | '6h' | '24h' | '7d' | '30d' | 'custom';
 
 interface AggregatedMetric {
@@ -72,6 +73,10 @@ interface AggregatedMetric {
     memory: number;
     disk: number;
     load: number;
+    networkIn: number;
+    networkOut: number;
+    processCount: number;
+    uptime: number;
 }
 
 const timeFrameOptions: { value: TimeFrame; label: string; bucketMinutes: number; dataPoints: number }[] = [
@@ -83,10 +88,14 @@ const timeFrameOptions: { value: TimeFrame; label: string; bucketMinutes: number
 ];
 
 const metricOptions = [
-    { value: 'CPU_USAGE', label: 'CPU Usage', shortLabel: 'CPU', color: 'hsl(var(--primary))', icon: Cpu },
-    { value: 'MEMORY_USAGE', label: 'Memory Usage', shortLabel: 'Memory', color: 'hsl(142 76% 36%)', icon: MemoryStick },
-    { value: 'DISK_USAGE', label: 'Disk Usage', shortLabel: 'Disk', color: 'hsl(38 92% 50%)', icon: HardDrive },
-    { value: 'LOAD_AVERAGE', label: 'Load Average', shortLabel: 'Load', color: 'hsl(280 70% 50%)', icon: Activity },
+    { value: 'CPU_USAGE', label: 'CPU Usage', shortLabel: 'CPU', color: 'hsl(var(--primary))', icon: Cpu, unit: '%' },
+    { value: 'MEMORY_USAGE', label: 'Memory Usage', shortLabel: 'Memory', color: 'hsl(142 76% 36%)', icon: MemoryStick, unit: '%' },
+    { value: 'DISK_USAGE', label: 'Disk Usage', shortLabel: 'Disk', color: 'hsl(38 92% 50%)', icon: HardDrive, unit: '%' },
+    { value: 'LOAD_AVERAGE', label: 'Load Average', shortLabel: 'Load', color: 'hsl(280 70% 50%)', icon: Activity, unit: '' },
+    { value: 'NETWORK_IN', label: 'Network In', shortLabel: 'Net In', color: 'hsl(190 90% 50%)', icon: Download, unit: 'B/s' },
+    { value: 'NETWORK_OUT', label: 'Network Out', shortLabel: 'Net Out', color: 'hsl(316 70% 50%)', icon: Upload, unit: 'B/s' },
+    { value: 'PROCESS_COUNT', label: 'Processes', shortLabel: 'Procs', color: 'hsl(24.6 95% 53.1%)', icon: Layers, unit: '' },
+    { value: 'UPTIME', label: 'Uptime', shortLabel: 'Uptime', color: 'hsl(175 80% 40%)', icon: Clock, unit: 's' },
 ];
 
 const CHART_COLORS = [
@@ -109,7 +118,9 @@ export default function HistoryPage() {
     const [chartType, setChartType] = useState<ChartType>('area');
     const [selectedMetric, setSelectedMetric] = useState<MetricType>('CPU_USAGE');
     const [customColor, setCustomColor] = useState<string>('');
-    const [overlayMode, setOverlayMode] = useState(false);
+    const [overlayMetrics, setOverlayMetrics] = useState<Set<MetricType>>(new Set());
+    const [overlayColors, setOverlayColors] = useState<Record<string, string>>({});
+    const overlayMode = overlayMetrics.size > 0;
     const [timeFrame, setTimeFrame] = useState<TimeFrame>('24h');
     const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
     const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
@@ -190,25 +201,30 @@ export default function HistoryPage() {
                     serversApi.getMetrics(server.id, { type: 'MEMORY_USAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
                     serversApi.getMetrics(server.id, { type: 'DISK_USAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
                     serversApi.getMetrics(server.id, { type: 'LOAD_AVERAGE', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'NETWORK_IN', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'NETWORK_OUT', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'PROCESS_COUNT', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
+                    serversApi.getMetrics(server.id, { type: 'UPTIME', start: startISO, end: endISO }).catch(() => ({ success: false, data: [] as Metric[] })),
                 ])
             );
 
             const allResults = await Promise.all(metricsPromises);
 
             // Aggregate metrics by timestamp buckets
-            const bucketMap = new Map<number, { cpu: number[]; memory: number[]; disk: number[]; load: number[] }>();
+            type BucketKeys = 'cpu' | 'memory' | 'disk' | 'load' | 'networkIn' | 'networkOut' | 'processCount' | 'uptime';
+            const bucketMap = new Map<number, Record<BucketKeys, number[]>>();
 
             allResults.forEach((serverMetrics) => {
-                const [cpuRes, memRes, diskRes, loadRes] = serverMetrics;
+                const [cpuRes, memRes, diskRes, loadRes, netInRes, netOutRes, procRes, uptimeRes] = serverMetrics;
 
-                const processMetrics = (res: { success: boolean; data: Metric[] }, key: 'cpu' | 'memory' | 'disk' | 'load') => {
+                const processMetrics = (res: { success: boolean; data: Metric[] }, key: BucketKeys) => {
                     if (res.success && res.data) {
                         res.data.forEach((m: Metric) => {
                             const metricTime = new Date(m.timestamp).getTime();
                             if (metricTime >= startTime) {
                                 const bucket = Math.floor(metricTime / bucketSize) * bucketSize;
                                 if (!bucketMap.has(bucket)) {
-                                    bucketMap.set(bucket, { cpu: [], memory: [], disk: [], load: [] });
+                                    bucketMap.set(bucket, { cpu: [], memory: [], disk: [], load: [], networkIn: [], networkOut: [], processCount: [], uptime: [] });
                                 }
                                 bucketMap.get(bucket)![key].push(m.value);
                             }
@@ -220,6 +236,10 @@ export default function HistoryPage() {
                 processMetrics(memRes, 'memory');
                 processMetrics(diskRes, 'disk');
                 processMetrics(loadRes, 'load');
+                processMetrics(netInRes, 'networkIn');
+                processMetrics(netOutRes, 'networkOut');
+                processMetrics(procRes, 'processCount');
+                processMetrics(uptimeRes, 'uptime');
             });
 
             // Convert to array and calculate averages
@@ -245,6 +265,10 @@ export default function HistoryPage() {
                     memory: values.memory.length > 0 ? values.memory.reduce((a, b) => a + b, 0) / values.memory.length : 0,
                     disk: values.disk.length > 0 ? values.disk.reduce((a, b) => a + b, 0) / values.disk.length : 0,
                     load: values.load.length > 0 ? values.load.reduce((a, b) => a + b, 0) / values.load.length : 0,
+                    networkIn: values.networkIn.length > 0 ? values.networkIn.reduce((a, b) => a + b, 0) / values.networkIn.length : 0,
+                    networkOut: values.networkOut.length > 0 ? values.networkOut.reduce((a, b) => a + b, 0) / values.networkOut.length : 0,
+                    processCount: values.processCount.length > 0 ? values.processCount.reduce((a, b) => a + b, 0) / values.processCount.length : 0,
+                    uptime: values.uptime.length > 0 ? values.uptime.reduce((a, b) => a + b, 0) / values.uptime.length : 0,
                 }))
                 .sort((a, b) => a.timestamp - b.timestamp)
                 .slice(-maxDataPoints);
@@ -271,11 +295,46 @@ export default function HistoryPage() {
         }
     }, [servers.length, timeFrame, selectedServer, customDateFrom, customDateTo]);
 
+    const metricKeyMap: Record<MetricType, keyof AggregatedMetric> = {
+        CPU_USAGE: 'cpu',
+        MEMORY_USAGE: 'memory',
+        DISK_USAGE: 'disk',
+        LOAD_AVERAGE: 'load',
+        NETWORK_IN: 'networkIn',
+        NETWORK_OUT: 'networkOut',
+        PROCESS_COUNT: 'processCount',
+        UPTIME: 'uptime',
+    };
+
+    const formatMetricValue = (value: number, metric: MetricType): string => {
+        if (metric === 'NETWORK_IN' || metric === 'NETWORK_OUT') {
+            if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(1);
+            if (value >= 1_000_000) return (value / 1_000_000).toFixed(1);
+            if (value >= 1_000) return (value / 1_000).toFixed(1);
+            return value.toFixed(0);
+        }
+        if (metric === 'UPTIME') {
+            const d = Math.floor(value / 86400);
+            const h = Math.floor((value % 86400) / 3600);
+            return d > 0 ? `${d}d ${h}h` : `${h}h`;
+        }
+        if (metric === 'PROCESS_COUNT') return value.toFixed(0);
+        return value.toFixed(2);
+    };
+
+    const getMetricUnit = (value: number, metric: MetricType): string => {
+        if (metric === 'NETWORK_IN' || metric === 'NETWORK_OUT') {
+            if (value >= 1_000_000_000) return 'GB/s';
+            if (value >= 1_000_000) return 'MB/s';
+            if (value >= 1_000) return 'KB/s';
+            return 'B/s';
+        }
+        return metricOptions.find(m => m.value === metric)?.unit || '';
+    };
+
     const getMetricData = () => {
-        const key = selectedMetric === 'CPU_USAGE' ? 'cpu'
-            : selectedMetric === 'MEMORY_USAGE' ? 'memory'
-                : selectedMetric === 'DISK_USAGE' ? 'disk' : 'load';
-        return historyData.map(d => ({ time: d.time, value: Number(d[key].toFixed(2)) }));
+        const key = metricKeyMap[selectedMetric];
+        return historyData.map(d => ({ time: d.time, value: Number((d[key] as number).toFixed(2)) }));
     };
 
     const getMetricColor = () => {
@@ -285,21 +344,28 @@ export default function HistoryPage() {
 
     const getMetricStats = () => {
         const data = getMetricData();
-        if (data.length === 0) return { avg: '0', max: '0', min: '0', current: '0' };
+        if (data.length === 0) return { avg: '0', max: '0', min: '0', current: '0', unit: '' };
 
         const values = data.map(d => d.value);
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        const max = Math.max(...values);
+        const min = Math.min(...values);
+        const current = values[values.length - 1] ?? 0;
+        const unit = getMetricUnit(current, selectedMetric);
         return {
-            avg: (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1),
-            max: Math.max(...values).toFixed(1),
-            min: Math.min(...values).toFixed(1),
-            current: values[values.length - 1]?.toFixed(1) || '0',
+            avg: formatMetricValue(avg, selectedMetric),
+            max: formatMetricValue(max, selectedMetric),
+            min: formatMetricValue(min, selectedMetric),
+            current: formatMetricValue(current, selectedMetric),
+            unit,
         };
     };
 
     const renderChart = () => {
         const data = getMetricData();
         const color = getMetricColor();
-        const domain: [number | 'auto', number | 'auto'] = selectedMetric === 'LOAD_AVERAGE' ? ['auto', 'auto'] : [0, 100];
+        const percentMetrics: MetricType[] = ['CPU_USAGE', 'MEMORY_USAGE', 'DISK_USAGE'];
+        const domain: [number | 'auto', number | 'auto'] = percentMetrics.includes(selectedMetric) ? [0, 100] : ['auto', 'auto'];
 
         const tooltipStyle = {
             backgroundColor: 'hsl(var(--card))',
@@ -307,26 +373,85 @@ export default function HistoryPage() {
             borderRadius: '8px',
         };
 
+        // Per-metric Y-axis tick formatter
+        const yAxisFormatter = (v: number) => {
+            if (percentMetrics.includes(selectedMetric)) return `${v}%`;
+            if (selectedMetric === 'NETWORK_IN' || selectedMetric === 'NETWORK_OUT') {
+                if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)} MB/s`;
+                if (v >= 1_000) return `${(v / 1_000).toFixed(1)} KB/s`;
+                return `${v.toFixed(0)} B/s`;
+            }
+            if (selectedMetric === 'UPTIME') {
+                const h = v / 3600;
+                if (h >= 24) return `${(h / 24).toFixed(0)}d`;
+                return `${h.toFixed(0)}h`;
+            }
+            if (selectedMetric === 'PROCESS_COUNT') return `${v.toFixed(0)}`;
+            return `${v}`;
+        };
+
+        // Per-metric tooltip value formatter
+        const tooltipFormatter = (v: number) => {
+            const label = metricOptions.find(m => m.value === selectedMetric)?.shortLabel || '';
+            if (percentMetrics.includes(selectedMetric)) return [`${v.toFixed(1)}%`, label];
+            if (selectedMetric === 'NETWORK_IN' || selectedMetric === 'NETWORK_OUT') {
+                if (v >= 1_000_000) return [`${(v / 1_000_000).toFixed(2)} MB/s`, label];
+                if (v >= 1_000) return [`${(v / 1_000).toFixed(2)} KB/s`, label];
+                return [`${v.toFixed(0)} B/s`, label];
+            }
+            if (selectedMetric === 'UPTIME') {
+                const d = Math.floor(v / 86400);
+                const h = Math.floor((v % 86400) / 3600);
+                return [d > 0 ? `${d}d ${h}h` : `${h}h`, label];
+            }
+            if (selectedMetric === 'PROCESS_COUNT') return [`${v.toFixed(0)}`, label];
+            if (selectedMetric === 'LOAD_AVERAGE') return [`${v.toFixed(2)}`, label];
+            return [`${v}`, label];
+        };
+
         // Overlay mode: show all metrics on a single chart
         if (overlayMode) {
+            const activeOptions = metricOptions.filter(opt => overlayMetrics.has(opt.value as MetricType));
+            // Reverse map: data key -> MetricType
+            const keyToMetric: Record<string, MetricType> = {};
+            for (const [mt, key] of Object.entries(metricKeyMap)) {
+                keyToMetric[key as string] = mt as MetricType;
+            }
+            const overlayTooltipFormatter = (value: number, name: string, props: { dataKey?: string }) => {
+                const dataKey = props.dataKey as string;
+                const mt = keyToMetric[dataKey];
+                if (mt === 'CPU_USAGE' || mt === 'MEMORY_USAGE' || mt === 'DISK_USAGE') return [`${value.toFixed(1)}%`, name];
+                if (mt === 'NETWORK_IN' || mt === 'NETWORK_OUT') {
+                    if (value >= 1_000_000) return [`${(value / 1_000_000).toFixed(2)} MB/s`, name];
+                    if (value >= 1_000) return [`${(value / 1_000).toFixed(2)} KB/s`, name];
+                    return [`${value.toFixed(0)} B/s`, name];
+                }
+                if (mt === 'UPTIME') {
+                    const d = Math.floor(value / 86400);
+                    const h = Math.floor((value % 86400) / 3600);
+                    return [d > 0 ? `${d}d ${h}h` : `${h}h`, name];
+                }
+                if (mt === 'PROCESS_COUNT') return [`${value.toFixed(0)}`, name];
+                if (mt === 'LOAD_AVERAGE') return [`${value.toFixed(2)}`, name];
+                return [`${value}`, name];
+            };
             return (
                 <LineChart data={historyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
                     <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={[0, 'auto']} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={overlayTooltipFormatter} />
                     <RechartsLegend />
-                    {metricOptions.map((opt) => {
-                        const key = opt.value === 'CPU_USAGE' ? 'cpu'
-                            : opt.value === 'MEMORY_USAGE' ? 'memory'
-                                : opt.value === 'DISK_USAGE' ? 'disk' : 'load';
+                    {activeOptions.map((opt) => {
+                        const key = metricKeyMap[opt.value as MetricType] as string;
+                        const lineColor = overlayColors[opt.value] || opt.color;
                         return (
                             <Line
                                 key={key}
                                 type="monotone"
                                 dataKey={key}
                                 name={opt.shortLabel}
-                                stroke={opt.color}
+                                stroke={lineColor}
                                 strokeWidth={2}
                                 dot={false}
                             />
@@ -341,8 +466,8 @@ export default function HistoryPage() {
                 <LineChart data={data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} tickFormatter={yAxisFormatter} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                     <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
                 </LineChart>
             );
@@ -351,8 +476,8 @@ export default function HistoryPage() {
                 <AreaChart data={data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} tickFormatter={yAxisFormatter} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                     <Area type="monotone" dataKey="value" stroke={color} fill={(() => { const i = color.lastIndexOf(')'); return i === -1 ? color : color.slice(0, i) + ' / 0.3)' + color.slice(i + 1); })()  } strokeWidth={2} />
                 </AreaChart>
             );
@@ -361,8 +486,8 @@ export default function HistoryPage() {
                 <BarChart data={data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} />
-                    <Tooltip contentStyle={tooltipStyle} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} domain={domain} tickFormatter={yAxisFormatter} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                     <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
                 </BarChart>
             );
@@ -375,7 +500,7 @@ export default function HistoryPage() {
         const timeFrameInfo = timeFrameOptions.find(t => t.value === timeFrame);
         return {
             metricName: metricInfo?.label || 'Unknown Metric',
-            metricUnit: selectedMetric !== 'LOAD_AVERAGE' ? '%' : '',
+            metricUnit: stats.unit,
             timeFrame: timeFrameInfo?.label || 'Unknown',
             serverSelection: selectedServer === 'all' ? 'All Servers' : servers.find(s => s.id.toString() === selectedServer)?.name || 'Unknown',
             timestamp: new Date().toLocaleString(),
@@ -726,26 +851,45 @@ export default function HistoryPage() {
 
                 {/* Stats Cards */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-xl border border-border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Current</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.current}{selectedMetric !== 'LOAD_AVERAGE' && '%'}</p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Average</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.avg}{selectedMetric !== 'LOAD_AVERAGE' && '%'}</p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Maximum</p>
-                        <p className="text-2xl font-bold text-warning">{stats.max}{selectedMetric !== 'LOAD_AVERAGE' && '%'}</p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-card p-4">
-                        <p className="text-sm text-muted-foreground">Minimum</p>
-                        <p className="text-2xl font-bold text-success">{stats.min}{selectedMetric !== 'LOAD_AVERAGE' && '%'}</p>
-                    </div>
+                    {(() => {
+                        const MetricIcon = metricOptions.find(m => m.value === selectedMetric)?.icon || Activity;
+                        return (
+                            <>
+                                <div className="rounded-xl border border-border bg-card p-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">Current</p>
+                                        <MetricIcon className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-foreground">{stats.current}<span className="text-sm font-normal text-muted-foreground ml-1">{stats.unit}</span></p>
+                                </div>
+                                <div className="rounded-xl border border-border bg-card p-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">Average</p>
+                                        <MetricIcon className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-foreground">{stats.avg}<span className="text-sm font-normal text-muted-foreground ml-1">{stats.unit}</span></p>
+                                </div>
+                                <div className="rounded-xl border border-border bg-card p-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">Maximum</p>
+                                        <MetricIcon className="h-4 w-4 text-warning" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-warning">{stats.max}<span className="text-sm font-normal text-muted-foreground ml-1">{stats.unit}</span></p>
+                                </div>
+                                <div className="rounded-xl border border-border bg-card p-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-muted-foreground">Minimum</p>
+                                        <MetricIcon className="h-4 w-4 text-success" />
+                                    </div>
+                                    <p className="text-2xl font-bold text-success">{stats.min}<span className="text-sm font-normal text-muted-foreground ml-1">{stats.unit}</span></p>
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
 
                 {/* Main Chart */}
-                <div ref={chartRef} className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
+                <div ref={chartRef} className="rounded-xl border-2 border-border bg-card p-4 sm:p-6 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -766,7 +910,19 @@ export default function HistoryPage() {
                             <Button
                                 variant={overlayMode ? 'default' : 'outline'}
                                 size="sm"
-                                onClick={() => setOverlayMode(!overlayMode)}
+                                onClick={() => {
+                                    if (overlayMode) {
+                                        setOverlayMetrics(new Set());
+                                        setOverlayColors({});
+                                    } else {
+                                        setOverlayMetrics(new Set([selectedMetric]));
+                                        toast({
+                                            title: 'Compare Mode',
+                                            description: 'Select the graphs you want to compare from the metric options.',
+                                        });
+                                    }
+                                }}
+                                title="Select the graphs you want to compare from the metric options."
                                 className={`h-[52px] px-4 gap-2 rounded-lg border-2 transition-all ${
                                     overlayMode
                                         ? 'ring-2 ring-primary ring-offset-1 ring-offset-background shadow-md'
@@ -778,21 +934,34 @@ export default function HistoryPage() {
                             </Button>
 
                             {/* Metric Selector */}
-                            <div className={`flex gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30 transition-opacity ${overlayMode ? 'opacity-40 pointer-events-none' : ''}`}>
+                            <div className={`flex flex-wrap gap-1 rounded-lg border-2 border-border p-1.5 bg-muted/30`}>
                                 {metricOptions.map((option) => {
-                                    const isSelected = selectedMetric === option.value;
+                                    const mt = option.value as MetricType;
+                                    const isSelected = overlayMode ? overlayMetrics.has(mt) : selectedMetric === mt;
                                     return (
                                         <Button
                                             key={option.value}
                                             variant={isSelected ? 'default' : 'ghost'}
                                             size="sm"
-                                            onClick={() => setSelectedMetric(option.value as MetricType)}
+                                            onClick={() => {
+                                                if (overlayMode) {
+                                                    const next = new Set(overlayMetrics);
+                                                    if (next.has(mt)) {
+                                                        if (next.size > 1) next.delete(mt);
+                                                    } else {
+                                                        next.add(mt);
+                                                    }
+                                                    setOverlayMetrics(next);
+                                                } else {
+                                                    setSelectedMetric(mt);
+                                                }
+                                            }}
                                             className={`h-9 px-3 gap-2 transition-all ${isSelected
                                                 ? 'shadow-md ring-2 ring-offset-1 ring-offset-background'
                                                 : 'opacity-60 hover:opacity-100'
                                                 }`}
                                             style={isSelected ? {
-                                                backgroundColor: option.color,
+                                                backgroundColor: (overlayMode && overlayColors[mt]) ? overlayColors[mt] : option.color,
                                             } : {}}
                                         >
                                             <option.icon className="h-4 w-4" />
@@ -823,49 +992,118 @@ export default function HistoryPage() {
                               </ToggleGroupItem>
                             </ToggleGroup>
 
-                            {/* Color Picker */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
+                            {/* Per-metric color pickers in compare mode */}
+                            {overlayMode && (
+                                <div className="flex gap-1 items-center rounded-lg border-2 border-border p-1.5 bg-muted/30">
+                                    {metricOptions
+                                        .filter(opt => overlayMetrics.has(opt.value as MetricType))
+                                        .map((opt) => {
+                                            const mt = opt.value as MetricType;
+                                            const currentColor = overlayColors[mt] || opt.color;
+                                            // Collect colors used by OTHER overlay metrics (custom or default)
+                                            const usedColors = new Set(
+                                                Array.from(overlayMetrics)
+                                                    .filter(m => m !== mt)
+                                                    .map(m => overlayColors[m] || metricOptions.find(o => o.value === m)?.color || '')
+                                            );
+                                            return (
+                                                <DropdownMenu key={mt}>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-9 px-2 gap-1.5 text-xs rounded-md"
+                                                            style={{ color: currentColor }}
+                                                        >
+                                                            <div className="h-3 w-3 rounded-full border border-current" style={{ backgroundColor: currentColor }} />
+                                                            <span className="hidden sm:inline">{opt.shortLabel}</span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>{opt.shortLabel} Color</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <div className="grid grid-cols-4 gap-2 p-2">
+                                                            {CHART_COLORS.filter(c => c.value !== '').map((c) => {
+                                                                const isDuplicate = usedColors.has(c.value);
+                                                                return (
+                                                                    <DropdownMenuItem
+                                                                        key={c.name}
+                                                                        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted ${isDuplicate ? 'opacity-25 pointer-events-none' : ''}`}
+                                                                        onSelect={() => {
+                                                                            if (!isDuplicate) {
+                                                                                setOverlayColors(prev => ({ ...prev, [mt]: c.value }));
+                                                                            }
+                                                                        }}
+                                                                        title={isDuplicate ? 'Already used by another graph' : c.name}
+                                                                    >
+                                                                        <div className="h-6 w-6 rounded-full border border-border shadow-sm" style={{ backgroundColor: c.value }} />
+                                                                    </DropdownMenuItem>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            );
+                                        })}
+                                    {/* Reset all colors to default */}
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className="h-[52px] w-[52px] rounded-lg border-2 border-border p-0 hover:bg-muted/50"
-                                        style={customColor ? { borderColor: customColor } : {}}
+                                        className="h-9 px-2 gap-1.5 text-xs rounded-md text-muted-foreground hover:text-foreground"
+                                        onClick={() => setOverlayColors({})}
+                                        title="Reset all colors to default"
                                     >
-                                        <Palette className="h-5 w-5" style={customColor ? { color: customColor } : {}} />
+                                        <RefreshCw className="h-3 w-3" />
+                                        <span className="hidden sm:inline">Reset</span>
                                     </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Chart Color</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <div className="grid grid-cols-4 gap-2 p-2">
-                                        {CHART_COLORS.map((color) => (
-                                            <DropdownMenuItem
-                                                key={color.name}
-                                                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted"
-                                                onClick={() => setCustomColor(color.value)}
-                                                title={color.name}
-                                            >
-                                                {color.value ? (
-                                                    <div
-                                                        className="h-6 w-6 rounded-full border border-border shadow-sm"
-                                                        style={{ backgroundColor: color.value }}
-                                                    />
-                                                ) : (
-                                                    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">
-                                                        /
-                                                    </div>
-                                                )}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </div>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                                </div>
+                            )}
+
+                            {/* Color Picker (single metric mode only) */}
+                            {!overlayMode && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-[52px] w-[52px] rounded-lg border-2 border-border p-0 hover:bg-muted/50"
+                                            style={customColor ? { borderColor: customColor } : {}}
+                                        >
+                                            <Palette className="h-5 w-5" style={customColor ? { color: customColor } : {}} />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Chart Color</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <div className="grid grid-cols-4 gap-2 p-2">
+                                            {CHART_COLORS.map((color) => (
+                                                <DropdownMenuItem
+                                                    key={color.name}
+                                                    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted"
+                                                    onSelect={() => setCustomColor(color.value)}
+                                                    title={color.name}
+                                                >
+                                                    {color.value ? (
+                                                        <div
+                                                            className="h-6 w-6 rounded-full border border-border shadow-sm"
+                                                            style={{ backgroundColor: color.value }}
+                                                        />
+                                                    ) : (
+                                                        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">
+                                                            /
+                                                        </div>
+                                                    )}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
                         </div>
                     </div>
 
                     {/* Chart */}
-                    <div className="h-80">
+                    <div className="h-60 sm:h-80">
                         {isLoadingHistory ? (
                             <div className="flex items-center justify-center h-full">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -886,20 +1124,35 @@ export default function HistoryPage() {
                     {/* Legend */}
                     {historyData.length > 0 && (
                         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-6 pt-4 border-t border-border">
-                            {metricOptions.map((option) => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => setSelectedMetric(option.value as MetricType)}
-                                    className={`flex items-center gap-2 text-sm transition-opacity ${selectedMetric === option.value ? 'opacity-100' : 'opacity-50 hover:opacity-75'
-                                        }`}
-                                >
-                                    <div
-                                        className="w-3 h-3 rounded-sm"
-                                        style={{ backgroundColor: option.color }}
-                                    />
-                                    <span>{option.label}</span>
-                                </button>
-                            ))}
+                            {metricOptions.map((option) => {
+                                const mt = option.value as MetricType;
+                                const isActive = overlayMode ? overlayMetrics.has(mt) : selectedMetric === mt;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => {
+                                            if (overlayMode) {
+                                                const next = new Set(overlayMetrics);
+                                                if (next.has(mt)) {
+                                                    if (next.size > 1) next.delete(mt);
+                                                } else {
+                                                    next.add(mt);
+                                                }
+                                                setOverlayMetrics(next);
+                                            } else {
+                                                setSelectedMetric(mt);
+                                            }
+                                        }}
+                                        className={`flex items-center gap-2 text-sm transition-opacity ${isActive ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`}
+                                    >
+                                        <div
+                                            className="w-3 h-3 rounded-sm"
+                                            style={{ backgroundColor: (overlayMode && overlayColors[mt]) ? overlayColors[mt] : option.color }}
+                                        />
+                                        <span>{option.label}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

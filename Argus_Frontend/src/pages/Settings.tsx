@@ -669,7 +669,7 @@ export default function Settings() {
                   {isSendingOtp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                   Send Code
                 </Button>
-                <div>
+                <div className="overflow-x-auto">
                   <InputOTP
                     maxLength={6}
                     value={otp}

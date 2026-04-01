@@ -328,7 +328,7 @@ export default function Documentation() {
       <div className="min-h-screen">
         {/* Hero Section */}
         <div className="relative bg-gradient-to-br from-primary/10 via-background to-background border-b border-border">
-          <div className="container mx-auto px-6 py-20">
+          <div className="container mx-auto px-4 sm:px-6 py-20">
             <div className="max-w-4xl mx-auto text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm mb-8">
                 <Book className="h-4 w-4" />
@@ -342,7 +342,7 @@ export default function Documentation() {
               </p>
 
               {/* Search Bar */}
-              <div className="relative max-w-2xl mx-auto mb-8">
+              <div className="relative w-full max-w-2xl mx-auto mb-8">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="text"
@@ -378,7 +378,7 @@ export default function Documentation() {
         </div>
 
         {/* Main Content */}
-        <div className="container mx-auto px-6 py-16">
+        <div className="container mx-auto px-4 sm:px-6 py-16">
           {/* Documentation Sections Grid */}
           {filteredSections.length === 0 ? (
             <div className="text-center py-16 mb-20">

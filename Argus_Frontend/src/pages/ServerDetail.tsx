@@ -27,6 +27,9 @@ import {
   AlertTriangle,
   ChevronRight,
   Palette,
+  Download,
+  Upload,
+  Layers,
 } from 'lucide-react';
 import { serversApi, alertsApi, type Server as ServerType, type Alert, type Metric } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -60,7 +63,7 @@ import {
 } from '@/components/ui/resizable';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
-  ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip
+  ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Legend
 } from 'recharts';
 
 type ChartType = 'line' | 'area' | 'bar';
@@ -76,6 +79,8 @@ const METRIC_TYPES = [
   'MEMORY_AVAILABLE',
   'DISK_TOTAL',
   'DISK_AVAILABLE',
+  'NETWORK_IN',
+  'NETWORK_OUT',
 ];
 
 type MetricMap = Record<string, Metric[]>;
@@ -109,6 +114,13 @@ export default function ServerDetail() {
   const [memoryChartType, setMemoryChartType] = useState<ChartType>('line');
   const [cpuChartColor, setCpuChartColor] = useState<string>('');
   const [memoryChartColor, setMemoryChartColor] = useState<string>('');
+  const [networkChartType, setNetworkChartType] = useState<ChartType>('area');
+  const [netInColor, setNetInColor] = useState<string>('');
+  const [netOutColor, setNetOutColor] = useState<string>('');
+  const [processChartType, setProcessChartType] = useState<ChartType>('area');
+  const [processChartColor, setProcessChartColor] = useState<string>('');
+  const [uptimeChartType, setUptimeChartType] = useState<ChartType>('area');
+  const [uptimeChartColor, setUptimeChartColor] = useState<string>('');
 
   const serverId = id ? Number(id) : null;
 
@@ -211,6 +223,10 @@ export default function ServerDetail() {
   };
 
   useEffect(() => {
+    if (!id || isNaN(Number(id))) {
+      navigate('/servers');
+      return;
+    }
     fetchData();
   }, [id]);
 
@@ -251,7 +267,7 @@ export default function ServerDetail() {
     }
   };
 
-  const handleAcknowledge = async (alertId: number) => {
+  const handleAcknowledge = async (alertId: number, _note?: string) => {
     try {
       await alertsApi.acknowledge(alertId);
       setAlerts(alerts.map(a =>
@@ -306,6 +322,36 @@ export default function ServerDetail() {
     value: m.value,
   }));
 
+  // Build combined Network I/O chart data (merge by timestamp index)
+  const networkInRaw = metrics['NETWORK_IN'] || [];
+  const networkOutRaw = metrics['NETWORK_OUT'] || [];
+  const networkChartData = (() => {
+    const map = new Map<string, { time: string; netIn: number; netOut: number }>();
+    networkInRaw.forEach(m => {
+      const t = new Date(m.timestamp).toLocaleTimeString();
+      const entry = map.get(t) || { time: t, netIn: 0, netOut: 0 };
+      entry.netIn = m.value / 1000; // convert to KB/s
+      map.set(t, entry);
+    });
+    networkOutRaw.forEach(m => {
+      const t = new Date(m.timestamp).toLocaleTimeString();
+      const entry = map.get(t) || { time: t, netIn: 0, netOut: 0 };
+      entry.netOut = m.value / 1000; // convert to KB/s
+      map.set(t, entry);
+    });
+    return Array.from(map.values());
+  })();
+
+  const processChartData = (metrics['PROCESS_COUNT'] || []).map(m => ({
+    time: new Date(m.timestamp).toLocaleTimeString(),
+    value: m.value,
+  }));
+
+  const uptimeChartData = (metrics['UPTIME'] || []).map(m => ({
+    time: new Date(m.timestamp).toLocaleTimeString(),
+    value: Number((m.value / 3600).toFixed(2)), // convert seconds to hours
+  }));
+
   // Calculate disk and memory info
   const memoryTotal = latestMetrics['MEMORY_TOTAL']?.value ?? 0;
   const memoryAvailable = latestMetrics['MEMORY_AVAILABLE']?.value ?? 0;
@@ -322,6 +368,29 @@ export default function ServerDetail() {
     return `${mb.toFixed(0)} MB`;
   };
 
+  const formatNetworkRate = (bytesPerSec: number) => {
+    if (bytesPerSec >= 1_000_000_000) return { value: (bytesPerSec / 1_000_000_000).toFixed(1), unit: 'GB/s' };
+    if (bytesPerSec >= 1_000_000) return { value: (bytesPerSec / 1_000_000).toFixed(1), unit: 'MB/s' };
+    if (bytesPerSec >= 1_000) return { value: (bytesPerSec / 1_000).toFixed(1), unit: 'KB/s' };
+    return { value: bytesPerSec.toFixed(0), unit: 'B/s' };
+  };
+
+  const formatUptime = (seconds: number) => {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return { value: `${d}d ${h}h`, unit: '' };
+    if (h > 0) return { value: `${h}h ${m}m`, unit: '' };
+    return { value: `${m}m`, unit: '' };
+  };
+
+  const netIn = latestMetrics['NETWORK_IN']?.value ?? 0;
+  const netOut = latestMetrics['NETWORK_OUT']?.value ?? 0;
+  const netInFmt = formatNetworkRate(netIn);
+  const netOutFmt = formatNetworkRate(netOut);
+  const uptimeVal = latestMetrics['UPTIME']?.value ?? 0;
+  const uptimeFmt = formatUptime(uptimeVal);
+
   /**
    * Reusable chart renderer — eliminates duplication between the CPU and Memory chart blocks.
    */
@@ -333,8 +402,11 @@ export default function ServerDetail() {
     chartColor: string;
     setChartColor: (c: string) => void;
     defaultColor: string;
+    domain?: [number | 'auto', number | 'auto'];
+    yAxisFormatter?: (v: number) => string;
+    tooltipFormatter?: (v: number) => [string, string];
   }) => {
-    const { title, data, chartType: ct, setChartType: setCt, chartColor, setChartColor: setCc, defaultColor } = opts;
+    const { title, data, chartType: ct, setChartType: setCt, chartColor, setChartColor: setCc, defaultColor, domain = [0, 100], yAxisFormatter, tooltipFormatter } = opts;
     if (data.length === 0) return null;
     const color = chartColor || defaultColor;
     const fillColor = chartColor ? `${chartColor.replace(')', ' / 0.3)')}` : `${defaultColor.replace(')', ' / 0.3)')}`;
@@ -343,10 +415,10 @@ export default function ServerDetail() {
     const gridStroke = 'hsl(var(--border))';
 
     return (
-      <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-xl border-2 border-border bg-card p-4 sm:p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="font-display text-lg font-semibold text-foreground">{title}</h3>
-          <div className="flex gap-1 items-center">
+          <div className="flex flex-wrap gap-1 items-center">
             <ToggleGroup
               type="single"
               value={ct}
@@ -374,7 +446,7 @@ export default function ServerDetail() {
                 <DropdownMenuSeparator />
                 <div className="grid grid-cols-4 gap-2 p-2">
                   {CHART_COLORS.map((c) => (
-                    <DropdownMenuItem key={c.name} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted" onClick={() => setCc(c.value)} title={c.name}>
+                    <DropdownMenuItem key={c.name} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted" onSelect={() => setCc(c.value)} title={c.name}>
                       {c.value ? (
                         <div className="h-6 w-6 rounded-full border border-border shadow-sm" style={{ backgroundColor: c.value }} />
                       ) : (
@@ -387,30 +459,30 @@ export default function ServerDetail() {
             </DropdownMenu>
           </div>
         </div>
-        <div className="h-64">
+        <div className="h-48 sm:h-64">
           <ResponsiveContainer width="100%" height="100%">
             {ct === 'line' ? (
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                 <XAxis dataKey="time" stroke={axisStroke} fontSize={12} />
-                <YAxis stroke={axisStroke} fontSize={12} domain={[0, 100]} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <YAxis stroke={axisStroke} fontSize={12} domain={domain} tickFormatter={yAxisFormatter} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                 <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={false} />
               </LineChart>
             ) : ct === 'area' ? (
               <AreaChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                 <XAxis dataKey="time" stroke={axisStroke} fontSize={12} />
-                <YAxis stroke={axisStroke} fontSize={12} domain={[0, 100]} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <YAxis stroke={axisStroke} fontSize={12} domain={domain} tickFormatter={yAxisFormatter} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                 <Area type="monotone" dataKey="value" stroke={color} fill={fillColor} strokeWidth={2} />
               </AreaChart>
             ) : (
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                 <XAxis dataKey="time" stroke={axisStroke} fontSize={12} />
-                <YAxis stroke={axisStroke} fontSize={12} domain={[0, 100]} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <YAxis stroke={axisStroke} fontSize={12} domain={domain} tickFormatter={yAxisFormatter} />
+                <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
                 <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
               </BarChart>
             )}
@@ -547,14 +619,41 @@ export default function ServerDetail() {
           />
         </div>
 
+        {/* Network, Processes & Uptime */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title="Network In"
+            value={latestMetrics['NETWORK_IN'] ? netInFmt.value : '--'}
+            unit={latestMetrics['NETWORK_IN'] ? netInFmt.unit : ''}
+            icon={<Download className="h-5 w-5" />}
+          />
+          <MetricCard
+            title="Network Out"
+            value={latestMetrics['NETWORK_OUT'] ? netOutFmt.value : '--'}
+            unit={latestMetrics['NETWORK_OUT'] ? netOutFmt.unit : ''}
+            icon={<Upload className="h-5 w-5" />}
+          />
+          <MetricCard
+            title="Processes"
+            value={latestMetrics['PROCESS_COUNT']?.value?.toFixed(0) ?? '--'}
+            icon={<Layers className="h-5 w-5" />}
+          />
+          <MetricCard
+            title="Uptime"
+            value={latestMetrics['UPTIME'] ? uptimeFmt.value : '--'}
+            unit={uptimeFmt.unit}
+            icon={<Clock className="h-5 w-5" />}
+          />
+        </div>
+
         {/* CPU Chart */}
         {cpuChartData.length > 0 && (
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-xl border-2 border-border bg-card p-4 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h3 className="font-display text-lg font-semibold text-foreground">
                 CPU Usage Over Time
               </h3>
-              <div className="flex gap-1 rounded-lg border border-border p-1 bg-muted/50">
+              <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1 bg-muted/50">
                 <Button
                   variant={cpuChartType === 'line' ? 'secondary' : 'ghost'}
                   size="sm"
@@ -602,7 +701,7 @@ export default function ServerDetail() {
                         <DropdownMenuItem
                           key={color.name}
                           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted"
-                          onClick={() => setCpuChartColor(color.value)}
+                          onSelect={() => setCpuChartColor(color.value)}
                           title={color.name}
                         >
                           {color.value ? (
@@ -622,7 +721,7 @@ export default function ServerDetail() {
                 </DropdownMenu>
               </div>
             </div>
-            <div className="h-64">
+            <div className="h-48 sm:h-64">
               <ResponsiveContainer width="100%" height="100%">
                 {cpuChartType === 'line' ? (
                   <LineChart data={cpuChartData}>
@@ -714,12 +813,12 @@ export default function ServerDetail() {
 
         {/* Memory Chart */}
         {memoryChartData.length > 0 && (
-          <div className="rounded-xl border-2 border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-xl border-2 border-border bg-card p-4 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h3 className="font-display text-lg font-semibold text-foreground">
                 Memory Usage Over Time
               </h3>
-              <div className="flex gap-1 rounded-lg border border-border p-1 bg-muted/50">
+              <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1 bg-muted/50">
                 <Button
                   variant={memoryChartType === 'line' ? 'secondary' : 'ghost'}
                   size="sm"
@@ -767,7 +866,7 @@ export default function ServerDetail() {
                         <DropdownMenuItem
                           key={color.name}
                           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted"
-                          onClick={() => setMemoryChartColor(color.value)}
+                          onSelect={() => setMemoryChartColor(color.value)}
                           title={color.name}
                         >
                           {color.value ? (
@@ -787,7 +886,7 @@ export default function ServerDetail() {
                 </DropdownMenu>
               </div>
             </div>
-            <div className="h-64">
+            <div className="h-48 sm:h-64">
               <ResponsiveContainer width="100%" height="100%">
                 {memoryChartType === 'line' ? (
                   <LineChart data={memoryChartData}>
@@ -876,6 +975,163 @@ export default function ServerDetail() {
             </div>
           </div>
         )}
+
+        {/* Network I/O Chart */}
+        {networkChartData.length > 0 && (
+          <div className="rounded-xl border-2 border-border bg-card p-4 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-lg font-semibold text-foreground">Network I/O</h3>
+              </div>
+              <div className="flex flex-wrap gap-1 items-center">
+                <ToggleGroup
+                  type="single"
+                  value={networkChartType}
+                  onValueChange={(v) => { if (v) setNetworkChartType(v as ChartType); }}
+                  className="rounded-lg border border-border p-1 bg-muted/50"
+                >
+                  <ToggleGroupItem value="line" className="h-7 px-2 gap-1 text-xs">
+                    <LineChartIcon className="h-3 w-3" /> Line
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="area" className="h-7 px-2 gap-1 text-xs">
+                    <TrendingUp className="h-3 w-3" /> Area
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="bar" className="h-7 px-2 gap-1 text-xs">
+                    <BarChart3 className="h-3 w-3" /> Bar
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                {/* Net In color */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 px-1.5 rounded-md gap-1 text-xs" style={netInColor ? { color: netInColor } : { color: 'hsl(190 90% 50%)' }}>
+                      <Download className="h-3 w-3" /> In
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Network In Color</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <div className="grid grid-cols-4 gap-2 p-2">
+                      {CHART_COLORS.map((c) => {
+                        const isSameAsOut = c.value !== '' && c.value === netOutColor;
+                        return (
+                          <DropdownMenuItem
+                            key={c.name}
+                            className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted ${isSameAsOut ? 'opacity-25 pointer-events-none' : ''}`}
+                            onSelect={() => { if (!isSameAsOut) setNetInColor(c.value); }}
+                            title={isSameAsOut ? `Already used by Net Out` : c.name}
+                          >
+                            {c.value ? (
+                              <div className="h-6 w-6 rounded-full border border-border shadow-sm" style={{ backgroundColor: c.value }} />
+                            ) : (
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">/</div>
+                            )}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Net Out color */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-7 px-1.5 rounded-md gap-1 text-xs" style={netOutColor ? { color: netOutColor } : { color: 'hsl(280 70% 50%)' }}>
+                      <Upload className="h-3 w-3" /> Out
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Network Out Color</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <div className="grid grid-cols-4 gap-2 p-2">
+                      {CHART_COLORS.map((c) => {
+                        const isSameAsIn = c.value !== '' && c.value === netInColor;
+                        return (
+                          <DropdownMenuItem
+                            key={c.name}
+                            className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md p-0 hover:bg-muted focus:bg-muted ${isSameAsIn ? 'opacity-25 pointer-events-none' : ''}`}
+                            onSelect={() => { if (!isSameAsIn) setNetOutColor(c.value); }}
+                            title={isSameAsIn ? `Already used by Net In` : c.name}
+                          >
+                            {c.value ? (
+                              <div className="h-6 w-6 rounded-full border border-border shadow-sm" style={{ backgroundColor: c.value }} />
+                            ) : (
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-foreground/50 bg-background text-[10px] font-medium text-foreground">/</div>
+                            )}
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            <div className="h-48 sm:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                {networkChartType === 'line' ? (
+                  <LineChart data={networkChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${v.toFixed(1)} KB/s`} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} formatter={(value: number, name: string) => [`${value.toFixed(1)} KB/s`, name === 'netIn' ? 'Network In' : 'Network Out']} />
+                    <Legend formatter={(value) => (value === 'netIn' ? 'Network In' : 'Network Out')} />
+                    <Line type="monotone" dataKey="netIn" stroke={netInColor || 'hsl(190 90% 50%)'} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="netOut" stroke={netOutColor || 'hsl(280 70% 50%)'} strokeWidth={2} dot={false} />
+                  </LineChart>
+                ) : networkChartType === 'area' ? (
+                  <AreaChart data={networkChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${v.toFixed(1)} KB/s`} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} formatter={(value: number, name: string) => [`${value.toFixed(1)} KB/s`, name === 'netIn' ? 'Network In' : 'Network Out']} />
+                    <Legend formatter={(value) => (value === 'netIn' ? 'Network In' : 'Network Out')} />
+                    <Area type="monotone" dataKey="netIn" stroke={netInColor || 'hsl(190 90% 50%)'} fill={(netInColor || 'hsl(190 90% 50%)').replace(')', ' / 0.3)')} strokeWidth={2} />
+                    <Area type="monotone" dataKey="netOut" stroke={netOutColor || 'hsl(280 70% 50%)'} fill={(netOutColor || 'hsl(280 70% 50%)').replace(')', ' / 0.3)')} strokeWidth={2} />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={networkChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => `${v.toFixed(1)} KB/s`} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} formatter={(value: number, name: string) => [`${value.toFixed(1)} KB/s`, name === 'netIn' ? 'Network In' : 'Network Out']} />
+                    <Legend formatter={(value) => (value === 'netIn' ? 'Network In' : 'Network Out')} />
+                    <Bar dataKey="netIn" fill={netInColor || 'hsl(190 90% 50%)'} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="netOut" fill={netOutColor || 'hsl(280 70% 50%)'} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Process Count & Uptime Charts */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Process Count Chart */}
+          {renderMetricChart({
+            title: 'Process Count',
+            data: processChartData,
+            chartType: processChartType,
+            setChartType: setProcessChartType,
+            chartColor: processChartColor,
+            setChartColor: setProcessChartColor,
+            defaultColor: 'hsl(280 70% 50%)',
+            domain: ['auto', 'auto'],
+            tooltipFormatter: (v: number) => [`${v.toFixed(0)}`, 'Processes'],
+          })}
+
+          {/* Uptime Chart */}
+          {renderMetricChart({
+            title: 'Uptime',
+            data: uptimeChartData,
+            chartType: uptimeChartType,
+            setChartType: setUptimeChartType,
+            chartColor: uptimeChartColor,
+            setChartColor: setUptimeChartColor,
+            defaultColor: 'hsl(175 80% 40%)',
+            domain: ['auto', 'auto'],
+            yAxisFormatter: (v: number) => `${v.toFixed(0)}h`,
+            tooltipFormatter: (v: number) => [`${v.toFixed(1)} hours`, 'Uptime'],
+          })}
+        </div>
 
         {/* Disk & Memory Info (Resizable) */}
         <ResizablePanelGroup direction="horizontal" className="rounded-xl border-2 border-border shadow-sm min-h-[280px]">

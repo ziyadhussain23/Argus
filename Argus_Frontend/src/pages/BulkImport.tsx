@@ -190,7 +190,7 @@ export default function BulkImport() {
           <Card>
             <CardContent className="pt-6">
               <div
-                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-16 cursor-pointer hover:border-primary/50 transition-colors"
+                className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-8 sm:py-16 cursor-pointer hover:border-primary/50 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-12 w-12 text-muted-foreground mb-4" />
@@ -245,7 +245,7 @@ export default function BulkImport() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

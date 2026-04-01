@@ -10,7 +10,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon"
       onClick={toggleTheme}
-      className="relative h-9 w-9 rounded-full transition-all hover:bg-primary/10"
+      className="relative h-10 w-10 rounded-full transition-all hover:bg-primary/10"
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
       <Sun

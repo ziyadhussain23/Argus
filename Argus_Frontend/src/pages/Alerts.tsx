@@ -251,7 +251,7 @@ export default function Alerts() {
 
           <TabsContent value="active" className="space-y-6 mt-4">
             {/* Stats */}
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
               <div className="rounded-lg border border-border bg-card p-4">
                 <p className="text-sm text-muted-foreground">Total Active</p>
                 <p className="font-display text-2xl font-bold text-foreground">{counts.total}</p>
@@ -281,13 +281,13 @@ export default function Alerts() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Filter by:</span>
               </div>
               <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Severity" />
                 </SelectTrigger>
                 <SelectContent>
@@ -298,7 +298,7 @@ export default function Alerts() {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -430,13 +430,13 @@ export default function Alerts() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">Filter by:</span>
               </div>
               <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                <SelectTrigger className="w-[150px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                   <SelectValue placeholder="Severity" />
                 </SelectTrigger>
                 <SelectContent>

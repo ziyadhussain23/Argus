@@ -14,7 +14,6 @@ import {
   Wifi,
   WifiOff,
   FileText,
-  User as UserIcon,
 } from 'lucide-react';
 import { ArgusLogo } from '@/components/ArgusLogo';
 import { cn } from '@/lib/utils';

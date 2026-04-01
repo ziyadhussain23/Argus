@@ -36,12 +36,6 @@ function getSharedClient(): Client {
     sharedClient = new Client({
       webSocketFactory: () => new SockJS(socketUrl),
       reconnectDelay: 5000,
-      onConnect: () => {
-        setSharedStatus('connected');
-      },
-      onDisconnect: () => {
-        setSharedStatus('disconnected');
-      },
       onStompError: (frame) => {
         console.error('STOMP error:', frame.headers?.message || frame);
         setSharedStatus('disconnected');
@@ -51,6 +45,18 @@ function getSharedClient(): Client {
         setSharedStatus('disconnected');
       },
     });
+
+    (sharedClient as any).__connectHandlers = [];
+    (sharedClient as any).__disconnectHandlers = [];
+
+    sharedClient.onConnect = () => {
+      setSharedStatus('connected');
+      ((sharedClient as any).__connectHandlers || []).forEach((fn: () => void) => fn());
+    };
+    sharedClient.onDisconnect = () => {
+      setSharedStatus('disconnected');
+      ((sharedClient as any).__disconnectHandlers || []).forEach((fn: () => void) => fn());
+    };
 
     setSharedStatus('connecting');
     sharedClient.activate();
@@ -97,7 +103,8 @@ export function useRealtime(
         client.subscribe(sub.topic, (message: IMessage) => {
           try {
             const payload = JSON.parse(message.body);
-            sub.onMessage(payload);
+            const currentSub = subsRef.current.find(s => s.topic === sub.topic);
+            if (currentSub) currentSub.onMessage(payload);
           } catch (err) {
             console.error('Failed to parse WebSocket message:', err);
           }
@@ -123,19 +130,8 @@ export function useRealtime(
       if (wasConnectedRef.current) setReconnecting(true);
     };
 
-    if (!(client as any).__connectHandlers) (client as any).__connectHandlers = [];
-    if (!(client as any).__disconnectHandlers) (client as any).__disconnectHandlers = [];
     (client as any).__connectHandlers.push(handleConnect);
     (client as any).__disconnectHandlers.push(handleDisconnect);
-
-    client.onConnect = () => {
-      setSharedStatus('connected');
-      ((client as any).__connectHandlers || []).forEach((fn: () => void) => fn());
-    };
-    client.onDisconnect = () => {
-      setSharedStatus('disconnected');
-      ((client as any).__disconnectHandlers || []).forEach((fn: () => void) => fn());
-    };
 
     return () => {
       subs.forEach((s) => { try { s.unsubscribe(); } catch {} });
