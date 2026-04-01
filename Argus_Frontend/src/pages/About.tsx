@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
     Server, Bell, Shield, Zap, LineChart, Globe,
     ChevronRight, CheckCircle2, Cpu, Database, Code2,
-    GitBranch, Layers, Heart, Target, Rocket, ArrowLeft
+    GitBranch, Layers, Heart, Target, Rocket, ArrowLeft, Activity
 } from 'lucide-react';
 import { ArgusLogo } from '@/components/ArgusLogo';
 
@@ -45,7 +45,7 @@ export default function About() {
         <div className="min-h-screen">
             {/* Header */}
             <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -79,7 +79,7 @@ export default function About() {
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-20 relative overflow-hidden">
+            <section className="pt-24 sm:pt-32 pb-20 relative overflow-hidden">
                 <div className="absolute inset-0">
                     <motion.div
                         className="absolute top-20 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"
@@ -93,7 +93,7 @@ export default function About() {
                     />
                 </div>
 
-                <div className="container mx-auto px-6 relative z-10">
+                <div className="container mx-auto px-4 sm:px-6 relative z-10">
                     <motion.div
                         className="max-w-4xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -125,8 +125,8 @@ export default function About() {
 
             {/* Stats Section */}
             <section className="py-16 bg-card border-y border-border">
-                <div className="container mx-auto px-6">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+                <div className="container mx-auto px-4 sm:px-6">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
                         {stats.map((stat, i) => (
                             <motion.div
                                 key={i}
@@ -145,8 +145,8 @@ export default function About() {
             </section>
 
             {/* What is Argus Section */}
-            <section className="py-24">
-                <div className="container mx-auto px-6">
+            <section className="py-16 sm:py-24">
+                <div className="container mx-auto px-4 sm:px-6">
                     <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <motion.div
                             initial={{ opacity: 0, x: -30 }}
@@ -251,8 +251,8 @@ export default function About() {
             </section>
 
             {/* Features Section */}
-            <section className="py-24 bg-gradient-to-b from-background to-card/50">
-                <div className="container mx-auto px-6">
+            <section className="py-16 sm:py-24 bg-gradient-to-b from-background to-card/50">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="text-center mb-16"
                         initial={{ opacity: 0, y: 30 }}
@@ -267,7 +267,7 @@ export default function About() {
                         </p>
                     </motion.div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
                         {features.map((feature, i) => (
                             <motion.div
                                 key={i}
@@ -290,8 +290,8 @@ export default function About() {
             </section>
 
             {/* Technology Section */}
-            <section className="py-24 bg-card border-y border-border">
-                <div className="container mx-auto px-6">
+            <section className="py-16 sm:py-24 bg-card border-y border-border">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="text-center mb-16"
                         initial={{ opacity: 0, y: 30 }}
@@ -331,8 +331,8 @@ export default function About() {
             </section>
 
             {/* Values Section */}
-            <section className="py-24">
-                <div className="container mx-auto px-6">
+            <section className="py-16 sm:py-24">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="text-center mb-16"
                         initial={{ opacity: 0, y: 30 }}
@@ -371,8 +371,8 @@ export default function About() {
             </section>
 
             {/* CTA Section */}
-            <section className="py-24 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-t border-border">
-                <div className="container mx-auto px-6">
+            <section className="py-16 sm:py-24 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border-t border-border">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="max-w-3xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -403,7 +403,7 @@ export default function About() {
 
             {/* Footer */}
             <footer className="py-12 bg-card border-t border-border">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="flex items-center gap-3">
                             <ArgusLogo size="sm" />

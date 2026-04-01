@@ -106,7 +106,7 @@ export default function HelpSupport() {
         <div className="min-h-screen">
             {/* Header */}
             <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -140,7 +140,7 @@ export default function HelpSupport() {
             </header>
 
             {/* Hero Section */}
-            <section className="pt-32 pb-16 relative overflow-hidden">
+            <section className="pt-24 sm:pt-32 pb-16 relative overflow-hidden">
                 <div className="absolute inset-0">
                     <motion.div
                         className="absolute top-10 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl"
@@ -154,7 +154,7 @@ export default function HelpSupport() {
                     />
                 </div>
 
-                <div className="container mx-auto px-6 relative z-10">
+                <div className="container mx-auto px-4 sm:px-6 relative z-10">
                     <motion.div
                         className="max-w-3xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -183,7 +183,7 @@ export default function HelpSupport() {
 
             {/* Support Options */}
             <section className="py-16">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
                         initial={{ opacity: 0, y: 20 }}
@@ -193,7 +193,7 @@ export default function HelpSupport() {
                         {supportOptions.map((option, i) => (
                             <motion.div
                                 key={i}
-                                className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300"
+                                className="group p-4 sm:p-6 rounded-2xl bg-card border border-border hover:border-primary/50 transition-all duration-300"
                                 initial={{ opacity: 0, y: 20 }}
                                 whileInView={{ opacity: 1, y: 0 }}
                                 viewport={{ once: true }}
@@ -230,8 +230,8 @@ export default function HelpSupport() {
 
             {/* Contact Form & Info */}
             <section className="py-24 bg-gradient-to-b from-background to-card/50">
-                <div className="container mx-auto px-6">
-                    <div className="grid lg:grid-cols-2 gap-16">
+                <div className="container mx-auto px-4 sm:px-6">
+                    <div className="grid lg:grid-cols-2 gap-8 lg:gap-16">
                         {/* Contact Form */}
                         <motion.div
                             initial={{ opacity: 0, x: -30 }}
@@ -394,7 +394,7 @@ export default function HelpSupport() {
 
             {/* FAQ Teaser */}
             <section className="py-24 bg-card border-y border-border">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="max-w-3xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -424,7 +424,7 @@ export default function HelpSupport() {
 
             {/* CTA Section */}
             <section className="py-24 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <motion.div
                         className="max-w-3xl mx-auto text-center"
                         initial={{ opacity: 0, y: 30 }}
@@ -454,7 +454,7 @@ export default function HelpSupport() {
 
             {/* Footer */}
             <footer className="py-12 bg-card border-t border-border">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="flex items-center gap-3">
                             <ArgusLogo size="sm" />

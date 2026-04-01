@@ -35,7 +35,7 @@ export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertC
   return (
     <div
       className={cn(
-        'rounded-lg border border-border bg-card p-5 border-l-4 transition-all animate-fade-in',
+        'rounded-lg border border-border bg-card p-4 sm:p-5 border-l-4 transition-all animate-fade-in',
         severityStyles[alert.severity]
       )}
     >
@@ -75,7 +75,7 @@ export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertC
         {alert.message}
       </p>
 
-      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+      <div className="mt-4 flex items-center justify-between flex-wrap gap-3 border-t border-border pt-4">
         <div className="text-sm text-muted-foreground">
           Value: <span className="text-foreground font-medium">{alert.metricValue}</span>
           {' / Threshold: '}
@@ -85,12 +85,12 @@ export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertC
         {alert.status === 'ACTIVE' && (
           <div className="space-y-2">
             {showNoteInput ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Input
                   placeholder="Add a note (optional)..."
                   value={ackNote}
                   onChange={(e) => setAckNote(e.target.value)}
-                  className="h-8 text-sm"
+                  className="h-10 text-sm"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !isLoading) {
                       const note = ackNote || undefined;
@@ -122,7 +122,7 @@ export function AlertCard({ alert, onAcknowledge, onResolve, isLoading }: AlertC
                 </Button>
               </div>
             ) : (
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-2 justify-end flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"

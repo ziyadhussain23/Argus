@@ -249,7 +249,7 @@ export default function Register() {
         </div>
 
         {/* Right side - Form */}
-        <div className="flex w-full flex-col justify-center px-8 lg:w-1/2 lg:px-16">
+        <div className="flex w-full flex-col justify-center px-4 sm:px-8 lg:w-1/2 lg:px-16">
           <motion.div
             className="mx-auto w-full max-w-md"
             initial={{ opacity: 0, x: 20 }}

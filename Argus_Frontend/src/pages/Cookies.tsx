@@ -12,7 +12,7 @@ export default function Cookies() {
         <div className="min-h-screen">
             {/* Header */}
             <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-                <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+                <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Button
                             variant="ghost"
@@ -39,7 +39,7 @@ export default function Cookies() {
                 </div>
             </header>
 
-            <main className="pt-32 pb-20 container mx-auto px-6 max-w-4xl">
+            <main className="pt-24 sm:pt-32 pb-20 container mx-auto px-4 sm:px-6 max-w-4xl">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -68,7 +68,7 @@ export default function Cookies() {
                         <section>
                             <h2 className="text-2xl font-semibold mb-4 text-foreground">2. Why We Use Cookies</h2>
                             <p className="mb-4">We use cookies for several reasons:</p>
-                            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+                            <ul className="list-disc pl-4 sm:pl-6 space-y-2 text-muted-foreground">
                                 <li><strong>Essential Cookies:</strong> These are strictly necessary for the website to function (e.g., keeping you logged in).</li>
                                 <li><strong>Performance Cookies:</strong> These allow us to count visits and traffic sources so we can measure and improve the performance of our site.</li>
                                 <li><strong>Functional Cookies:</strong> These enable the website to provide enhanced functionality and personalization.</li>
@@ -90,7 +90,7 @@ export default function Cookies() {
             </main>
 
             <footer className="py-12 bg-card border-t border-border mt-20">
-                <div className="container mx-auto px-6">
+                <div className="container mx-auto px-4 sm:px-6">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                         <div className="flex items-center gap-3">
                             <ArgusLogo size="sm" />

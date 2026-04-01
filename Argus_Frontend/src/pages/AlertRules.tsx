@@ -462,7 +462,7 @@ export default function AlertRules() {
                 Create Rule
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="w-full sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Create Alert Rule</DialogTitle>
                 <DialogDescription>
@@ -491,7 +491,7 @@ export default function AlertRules() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Metric Type</Label>
                     <Select
@@ -531,7 +531,7 @@ export default function AlertRules() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="threshold">Threshold Value</Label>
                     <Input
@@ -565,7 +565,7 @@ export default function AlertRules() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="duration">Duration (seconds)</Label>
                     <Input
@@ -614,7 +614,7 @@ export default function AlertRules() {
           <div className="flex items-center gap-4">
             <Server className="h-5 w-5 text-muted-foreground" />
             <Select value={selectedServer} onValueChange={setSelectedServer}>
-              <SelectTrigger className="w-[300px]">
+              <SelectTrigger className="w-full sm:w-[300px]">
                 <SelectValue placeholder="Select a server" />
               </SelectTrigger>
               <SelectContent>
@@ -650,7 +650,7 @@ export default function AlertRules() {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card">
+          <div className="rounded-xl border border-border bg-card overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -829,7 +829,7 @@ export default function AlertRules() {
 
       {/* Edit Rule Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="w-full sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Alert Rule</DialogTitle>
             <DialogDescription>Update the alert rule configuration.</DialogDescription>
@@ -843,7 +843,7 @@ export default function AlertRules() {
               <Label>Description</Label>
               <Input value={editFormData.description} onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Metric Type</Label>
                 <Select value={editFormData.metricType} onValueChange={(v) => setEditFormData({ ...editFormData, metricType: v })}>
@@ -859,7 +859,7 @@ export default function AlertRules() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Threshold</Label>
                 <Input type="number" value={editFormData.thresholdValue} onChange={(e) => setEditFormData({ ...editFormData, thresholdValue: e.target.value })} />
@@ -872,7 +872,7 @@ export default function AlertRules() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Duration (seconds)</Label>
                 <Input type="number" value={editFormData.durationSeconds} onChange={(e) => setEditFormData({ ...editFormData, durationSeconds: e.target.value })} />

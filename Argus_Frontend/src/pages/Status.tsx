@@ -109,8 +109,8 @@ export default function Status() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen py-12">
-        <div className="container mx-auto px-6 max-w-5xl">
+      <div className="min-h-screen py-8 sm:py-12">
+        <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
           {/* Header */}
           <div className="text-center mb-12">
             <div className="flex justify-center mb-6">
@@ -158,7 +158,7 @@ export default function Status() {
               {components.map((component, idx) => (
                 <motion.div
                   key={component.name}
-                  className="rounded-xl border border-border bg-card p-6 flex items-center justify-between hover:border-primary/30 transition-colors"
+                  className="rounded-xl border border-border bg-card p-4 sm:p-6 flex items-center justify-between hover:border-primary/30 transition-colors"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}
@@ -184,7 +184,7 @@ export default function Status() {
           </div>
 
           {/* Footer Note */}
-          <div className="text-center p-6 rounded-xl bg-muted/50 border border-border">
+          <div className="text-center p-4 sm:p-6 rounded-xl bg-muted/50 border border-border">
             <p className="text-sm text-muted-foreground">
               Status checks run automatically every 60 seconds.
             </p>

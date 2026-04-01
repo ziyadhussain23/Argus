@@ -529,7 +529,7 @@ export default function AddServer() {
                     <Terminal className="h-4 w-4" />
                     Agent Script ({operatingSystem || 'Select OS'})
                   </Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={copyScript}>
                       {scriptCopied ? (
                         <Check className="h-4 w-4 text-success" />
@@ -561,7 +561,7 @@ export default function AddServer() {
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <Button onClick={() => navigate(`/servers/${createdServer.id}`)}>
                 View Server Details
               </Button>
@@ -595,7 +595,7 @@ export default function AddServer() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+          <div className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-border">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <Server className="h-5 w-5 text-primary" />
@@ -659,7 +659,7 @@ export default function AddServer() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-4">
+          <div className="flex justify-end gap-4 flex-wrap">
             <Button
               type="button"
               variant="outline"

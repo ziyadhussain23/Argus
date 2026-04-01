@@ -80,12 +80,12 @@ export default function EditServer() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Edit Server</h1>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Edit Server</h1>
             <p className="mt-1 text-muted-foreground">Update server details</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-4 sm:p-6 space-y-5">
           <div className="space-y-2">
             <Label htmlFor="name">Server Name</Label>
             <Input
@@ -117,7 +117,7 @@ export default function EditServer() {
               rows={3}
             />
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 flex-wrap">
             <Button type="button" variant="outline" onClick={() => navigate(`/servers/${id}`)}>Cancel</Button>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? (

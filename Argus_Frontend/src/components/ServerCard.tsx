@@ -42,7 +42,7 @@ export function ServerCard({ server }: ServerCardProps) {
     <Link
       to={`/servers/${server.id}`}
       className={cn(
-        'group block rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:shadow-lg',
+        'group block rounded-xl border border-border bg-card p-4 sm:p-5 transition-all duration-300 hover:shadow-lg',
         borderColor[server.status]
       )}
     >
@@ -52,7 +52,7 @@ export function ServerCard({ server }: ServerCardProps) {
             <Server className="h-5 w-5 text-foreground" />
           </div>
           <div>
-            <h3 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">
+            <h3 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors truncate max-w-[160px] sm:max-w-none">
               {server.name}
             </h3>
             <p className="text-sm text-muted-foreground">{server.hostAddress}</p>
@@ -61,7 +61,7 @@ export function ServerCard({ server }: ServerCardProps) {
         <StatusBadge status={server.status} />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Clock className="h-4 w-4" />
           <span>{lastHeartbeat}</span>
@@ -82,8 +82,8 @@ export function ServerCard({ server }: ServerCardProps) {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-        <span className="text-xs text-muted-foreground">{server.operatingSystem}</span>
+      <div className="mt-4 flex items-center justify-between gap-2 flex-wrap border-t border-border pt-4">
+        <span className="text-xs text-muted-foreground truncate">{server.operatingSystem}</span>
         <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
       </div>
     </Link>
