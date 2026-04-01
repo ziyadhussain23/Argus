@@ -5,7 +5,9 @@ export const setApiBaseUrl = (url: string) => {
 };
 
 export const getApiBaseUrl = () => {
-  const url = localStorage.getItem('argus_api_url') || 'http://localhost:8080/api/v1';
+  const url = localStorage.getItem('argus_api_url')
+    || (import.meta.env.VITE_API_BASE_URL as string | undefined)
+    || 'http://localhost:8080/api/v1';
   return url.replace(/\/+$/, '');
 };
 
@@ -172,6 +174,12 @@ export async function apiRequest<T>(
     throw new Error('Unable to connect to the server. Please check that the backend is running.');
   }
 
+  if (!response.ok && response.status === 401) {
+    removeToken();
+    localStorage.removeItem('argus_user');
+    window.dispatchEvent(new Event('argus:unauthorized'));
+  }
+
   let data: ApiResponse<T>;
   try {
     data = await response.json();
@@ -180,11 +188,6 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      removeToken();
-      localStorage.removeItem('argus_user');
-      window.dispatchEvent(new Event('argus:unauthorized'));
-    }
     throw new Error(data.message || `API request failed (HTTP ${response.status})`);
   }
 

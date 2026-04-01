@@ -1,6 +1,6 @@
 // Dashboard - Main monitoring overview page
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { MetricCard } from '@/components/MetricCard';
 import { ServerCard } from '@/components/ServerCard';
@@ -118,6 +118,7 @@ export default function Dashboard() {
 
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const primaryServerId = servers[0]?.id;
 
   const realtimeSubscriptions = useMemo(() => {
@@ -221,16 +222,44 @@ export default function Dashboard() {
 
       // Fetch history with time range filter
       const rangeMs: Record<string, number> = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '7d': 604800000 };
-      const start = new Date(Date.now() - (rangeMs[timeRange] || 86400000)).toISOString();
-      const metricsRes = await serversApi.getMetrics(serverId, { type: 'CPU_USAGE', start });
+      const now = new Date();
+      const rangeStart = new Date(now.getTime() - (rangeMs[timeRange] || 86400000));
+
+      // Format as local ISO (no Z) to match backend LocalDateTime parsing
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const toLocalISO = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+      const metricsRes = await serversApi.getMetrics(serverId, {
+        type: 'CPU_USAGE',
+        start: toLocalISO(rangeStart),
+        end: toLocalISO(now),
+      });
       if (metricsRes.success) {
         const pointCount = HISTORY_POINTS_BY_RANGE[timeRange] || 20;
-        const data = metricsRes.data
-          .slice(-pointCount)
-          .map((m: Metric) => ({
+        const raw = metricsRes.data;
+
+        // Bucket data for longer ranges to avoid overcrowding
+        let data: { time: string; value: number }[];
+        if (raw.length <= pointCount) {
+          data = raw.map((m: Metric) => ({
             time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            value: m.value
+            value: m.value,
           }));
+        } else {
+          const bucketSize = Math.ceil(raw.length / pointCount);
+          data = [];
+          for (let i = 0; i < raw.length; i += bucketSize) {
+            const bucket = raw.slice(i, i + bucketSize);
+            const avg = bucket.reduce((sum: number, m: Metric) => sum + m.value, 0) / bucket.length;
+            const midpoint = bucket[Math.floor(bucket.length / 2)];
+            const ts = new Date(midpoint.timestamp);
+            const label = timeRange === '7d'
+              ? ts.toLocaleDateString([], { month: 'short', day: 'numeric' })
+              : ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            data.push({ time: label, value: Number(avg.toFixed(1)) });
+          }
+        }
         setHistoryData(data);
       }
     } catch (error) {
@@ -371,7 +400,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32 rounded-xl" />
             ))}
@@ -465,7 +494,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Stats */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}>
             <MetricCard
               title="Total Servers"
@@ -505,7 +534,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions Menubar */}
-        <Menubar className="w-fit">
+        <Menubar className="w-full overflow-x-auto sm:w-fit">
           <MenubarMenu>
             <MenubarTrigger>View</MenubarTrigger>
             <MenubarContent>
@@ -520,17 +549,17 @@ export default function Dashboard() {
           <MenubarMenu>
             <MenubarTrigger>Actions</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem onClick={() => window.location.href = '/servers/new'}>
+              <MenubarItem onClick={() => navigate('/servers/new')}>
                 Add Server
               </MenubarItem>
-              <MenubarItem onClick={() => window.location.href = '/rules'}>
+              <MenubarItem onClick={() => navigate('/rules')}>
                 Manage Rules
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem onClick={() => window.location.href = '/reports'}>
+              <MenubarItem onClick={() => navigate('/reports')}>
                 Reports
               </MenubarItem>
-              <MenubarItem onClick={() => window.location.href = '/history'}>
+              <MenubarItem onClick={() => navigate('/history')}>
                 Full History
               </MenubarItem>
             </MenubarContent>
@@ -538,14 +567,14 @@ export default function Dashboard() {
           <MenubarMenu>
             <MenubarTrigger>Help</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem onClick={() => window.location.href = '/docs'}>
+              <MenubarItem onClick={() => navigate('/docs')}>
                 Documentation
               </MenubarItem>
-              <MenubarItem onClick={() => window.location.href = '/help'}>
+              <MenubarItem onClick={() => navigate('/help')}>
                 Support
               </MenubarItem>
               <MenubarSeparator />
-              <MenubarItem onClick={() => window.location.href = '/status'}>
+              <MenubarItem onClick={() => navigate('/status')}>
                 System Status
               </MenubarItem>
             </MenubarContent>

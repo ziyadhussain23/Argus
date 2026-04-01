@@ -263,14 +263,18 @@ export default function ScheduledReports() {
       const start = new Date(now.getTime() - (tfOption?.ms ?? 24 * 60 * 60 * 1000));
       const allData: { serverName: string; serverHost: string; metric: string; value: number; unit: string; timestamp: string }[] = [];
 
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const toLocalISO = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
       for (const server of targetServers) {
         for (const metricType of report.metrics) {
           try {
             // Try fetching time-range data first
             const res = await serversApi.getMetrics(server.id, {
               type: metricType,
-              start: start.toISOString(),
-              end: now.toISOString(),
+              start: toLocalISO(start),
+              end: toLocalISO(now),
             });
             const metricsArr = res.data;
             if (metricsArr && metricsArr.length > 0) {
@@ -569,9 +573,9 @@ export default function ScheduledReports() {
                 ) : servers.length === 0 ? (
                   <p className="text-sm text-muted-foreground p-2">No servers registered yet.</p>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
                     {servers.map(s => (
-                      <label key={s.id} className="flex items-center gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/50">
+                      <label key={s.id} className="flex items-center gap-2 rounded-md border border-border p-3 sm:p-2 cursor-pointer hover:bg-muted/50">
                         <Checkbox
                           checked={formData.servers.includes(s.id)}
                           onCheckedChange={() => toggleServer(s.id)}
@@ -623,9 +627,9 @@ export default function ScheduledReports() {
               {/* Metrics */}
               <div className="space-y-2">
                 <Label>Metrics to Include</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   {AVAILABLE_METRICS.map(m => (
-                    <label key={m.value} className="flex items-center gap-2 rounded-md border border-border p-2 cursor-pointer hover:bg-muted/50">
+                    <label key={m.value} className="flex items-center gap-2 rounded-md border border-border p-3 sm:p-2 cursor-pointer hover:bg-muted/50">
                       <Checkbox
                         checked={formData.metrics.includes(m.value)}
                         onCheckedChange={() => toggleMetric(m.value)}
