@@ -18,10 +18,18 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     List<Notification> findByStatus(Notification.NotificationStatus status);
     
     List<Notification> findByAlert(Alert alert);
+
+        @Query("SELECT n FROM Notification n WHERE n.alert.id = :alertId AND n.recipient.id = :recipientId ORDER BY n.createdAt DESC")
+        List<Notification> findByAlertIdAndRecipientId(
+            @Param("alertId") Long alertId,
+            @Param("recipientId") Long recipientId
+        );
     
     @Query("SELECT n FROM Notification n WHERE n.status = 'PENDING' ORDER BY n.createdAt")
     List<Notification> findPendingNotifications();
     
     @Query("SELECT n FROM Notification n WHERE n.status = 'FAILED' AND n.retryCount < :maxRetries")
     List<Notification> findFailedNotificationsForRetry(@Param("maxRetries") int maxRetries);
+
+    void deleteByRecipientId(Long recipientId);
 }

@@ -17,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -123,6 +124,20 @@ public class EmailService {
             log.info("Password changed confirmation sent to: {}", user.getEmail());
         } catch (MessagingException e) {
             log.error("Failed to send password changed email to: {}", user.getEmail(), e);
+        }
+    }
+
+    @Async
+    public void sendInfrastructureReportEmail(List<String> recipients, String subject, String htmlContent) {
+        if (recipients == null || recipients.isEmpty()) {
+            return;
+        }
+        for (String recipient : recipients) {
+            try {
+                sendHtmlEmail(recipient, subject, htmlContent);
+            } catch (MessagingException e) {
+                log.error("Failed to send infrastructure report to: {}", recipient, e);
+            }
         }
     }
     

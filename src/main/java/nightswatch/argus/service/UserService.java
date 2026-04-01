@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 @Service
 @Slf4j
@@ -26,16 +29,29 @@ public class UserService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        log.info("Registering new user: {}", request.getUsername());
+        String username = request.getUsername() != null ? request.getUsername().trim() : null;
+        String email = request.getEmail() != null ? request.getEmail().trim().toLowerCase(Locale.ROOT) : null;
+
+        log.info("Registering new user: {}", username);
 
         // Check if username already exists
-        if (userRepository.existsByUsername(request.getUsername())) {
+        if (userRepository.existsByUsername(username)) {
             throw new BadRequestException("Username already taken");
         }
 
-        // Check if email already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
+        // Check if email already exists (case-insensitive)
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new BadRequestException("Email already registered");
+        }
+
+        // Prevent ambiguous login identifiers:
+        // - username cannot equal an existing email
+        // - email cannot equal an existing username
+        if (userRepository.existsByEmailIgnoreCase(username)) {
+            throw new BadRequestException("Username cannot be used because it matches an existing email");
+        }
+        if (userRepository.existsByUsernameIgnoreCase(email)) {
+            throw new BadRequestException("Email cannot be used because it matches an existing username");
         }
 
         // Generate verification token
@@ -43,8 +59,8 @@ public class UserService {
         
         // Create new user
         User user = User.builder()
-                .username(request.getUsername())
-                .email(request.getEmail())
+            .username(username)
+            .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(User.Role.USER)
                 .isActive(true)
@@ -69,17 +85,39 @@ public class UserService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        log.info("Login attempt for user: {}", request.getUsername());
+        String identifier = request.getUsername() != null ? request.getUsername().trim() : "";
+        log.info("Login attempt for identifier: {}", identifier);
 
-        // Find user by username
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new BadRequestException("Invalid username or password"));
+        // Find user by username OR email (case-insensitive email)
+        List<User> candidates = new ArrayList<>(2);
 
-        // Verify password
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            log.warn("Invalid password attempt for user: {}", request.getUsername());
-            throw new BadRequestException("Invalid username or password");
+        userRepository.findByUsername(identifier).ifPresent(candidates::add);
+        userRepository.findByEmailIgnoreCase(identifier)
+                .ifPresent(user -> {
+                    boolean alreadyAdded = candidates.stream().anyMatch(u -> u.getId().equals(user.getId()));
+                    if (!alreadyAdded) {
+                        candidates.add(user);
+                    }
+                });
+
+        if (candidates.isEmpty()) {
+            throw new BadRequestException("Invalid username/email or password");
         }
+
+        List<User> passwordMatches = candidates.stream()
+                .filter(u -> passwordEncoder.matches(request.getPassword(), u.getPassword()))
+                .toList();
+
+        if (passwordMatches.isEmpty()) {
+            log.warn("Invalid password attempt for identifier: {}", identifier);
+            throw new BadRequestException("Invalid username/email or password");
+        }
+
+        if (passwordMatches.size() > 1) {
+            throw new BadRequestException("Ambiguous login identifier. Please log in using your username.");
+        }
+
+        User user = passwordMatches.get(0);
 
         // Check if user is active
         if (!user.getIsActive()) {

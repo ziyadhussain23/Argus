@@ -3,10 +3,13 @@ package nightswatch.argus.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import nightswatch.argus.dto.request.AlertRuleRequest;
+import nightswatch.argus.dto.request.AlertRuleUpdateRequest;
 import nightswatch.argus.dto.response.AlertResponse;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.entity.AlertRule;
+import nightswatch.argus.entity.Alert;
 import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.BadRequestException;
 import nightswatch.argus.service.AlertService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,6 +44,14 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success(rules));
     }
 
+    @GetMapping("/rules/enabled")
+    public ResponseEntity<ApiResponse<List<AlertRule>>> getEnabledAlertRules(
+            @AuthenticationPrincipal User user) {
+
+        List<AlertRule> rules = alertService.getEnabledAlertRules(user);
+        return ResponseEntity.ok(ApiResponse.success(rules));
+    }
+
     @PatchMapping("/rules/{ruleId}/toggle")
     public ResponseEntity<ApiResponse<Void>> toggleAlertRule(
             @PathVariable Long ruleId,
@@ -60,6 +71,16 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success("Alert rule deleted", null));
     }
 
+    @PutMapping("/rules/{ruleId}")
+    public ResponseEntity<ApiResponse<AlertRule>> updateAlertRule(
+            @PathVariable Long ruleId,
+            @Valid @RequestBody AlertRuleUpdateRequest request,
+            @AuthenticationPrincipal User user) {
+
+        AlertRule rule = alertService.updateAlertRule(ruleId, request, user);
+        return ResponseEntity.ok(ApiResponse.success("Alert rule updated", rule));
+    }
+
     // ==================== Alerts ====================
 
     @GetMapping
@@ -70,12 +91,36 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success(alerts));
     }
 
+    @GetMapping("/status/{status}")
+    public ResponseEntity<ApiResponse<List<AlertResponse>>> getAlertsByStatus(
+            @PathVariable String status,
+            @AuthenticationPrincipal User user) {
+
+        Alert.AlertStatus parsedStatus;
+        try {
+            parsedStatus = Alert.AlertStatus.valueOf(status.trim().toUpperCase());
+        } catch (Exception ex) {
+            throw new BadRequestException("Invalid alert status: " + status);
+        }
+
+        List<AlertResponse> alerts = alertService.getAlertsByStatus(user, parsedStatus);
+        return ResponseEntity.ok(ApiResponse.success(alerts));
+    }
+
     @GetMapping("/server/{serverId}")
     public ResponseEntity<ApiResponse<List<AlertResponse>>> getAlertsByServer(
             @PathVariable Long serverId,
             @AuthenticationPrincipal User user) {
         
         List<AlertResponse> alerts = alertService.getAlertsByServer(serverId, user);
+        return ResponseEntity.ok(ApiResponse.success(alerts));
+    }
+
+    @GetMapping("/resolved")
+    public ResponseEntity<ApiResponse<List<AlertResponse>>> getResolvedAlerts(
+            @AuthenticationPrincipal User user) {
+
+        List<AlertResponse> alerts = alertService.getResolvedAlerts(user);
         return ResponseEntity.ok(ApiResponse.success(alerts));
     }
 

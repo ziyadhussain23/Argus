@@ -3,12 +3,14 @@ package nightswatch.argus.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import nightswatch.argus.dto.request.ServerRegistrationRequest;
+import nightswatch.argus.dto.request.ServerUpdateRequest;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.dto.response.MetricResponse;
 import nightswatch.argus.dto.response.ServerResponse;
 import nightswatch.argus.entity.Metric;
 import nightswatch.argus.entity.Server;
 import nightswatch.argus.entity.User;
+import nightswatch.argus.exception.BadRequestException;
 import nightswatch.argus.repository.ServerRepository;
 import nightswatch.argus.service.MetricService;
 import nightswatch.argus.service.ServerService;
@@ -44,6 +46,22 @@ public class ServerController {
         return ResponseEntity.ok(ApiResponse.success(servers));
     }
 
+    @GetMapping("/status/{status}")
+    public ResponseEntity<ApiResponse<List<ServerResponse>>> getServersByStatus(
+            @PathVariable String status,
+            @AuthenticationPrincipal User user) {
+
+        Server.ServerStatus parsedStatus;
+        try {
+            parsedStatus = Server.ServerStatus.valueOf(status.trim().toUpperCase());
+        } catch (Exception ex) {
+            throw new BadRequestException("Invalid server status: " + status);
+        }
+
+        List<ServerResponse> servers = serverService.getServersByOwnerAndStatus(user, parsedStatus);
+        return ResponseEntity.ok(ApiResponse.success(servers));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ServerResponse>> getServer(
             @PathVariable Long id,
@@ -60,6 +78,16 @@ public class ServerController {
         
         serverService.deleteServer(id, user);
         return ResponseEntity.ok(ApiResponse.success("Server deleted successfully", null));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<ServerResponse>> updateServer(
+            @PathVariable Long id,
+            @RequestBody ServerUpdateRequest request,
+            @AuthenticationPrincipal User user) {
+
+        ServerResponse response = serverService.updateServer(id, request, user);
+        return ResponseEntity.ok(ApiResponse.success("Server updated successfully", response));
     }
 
     @PostMapping("/{id}/regenerate-key")

@@ -3,6 +3,7 @@ package nightswatch.argus.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nightswatch.argus.dto.request.AlertRuleRequest;
+import nightswatch.argus.dto.request.AlertRuleUpdateRequest;
 import nightswatch.argus.dto.response.AlertResponse;
 import nightswatch.argus.entity.Alert;
 import nightswatch.argus.entity.AlertRule;
@@ -106,9 +107,24 @@ public class AlertService {
                 .toList();
     }
 
+    public List<AlertRule> getEnabledAlertRules(User owner) {
+        return alertRuleRepository.findEnabledByOwnerId(owner.getId());
+    }
+
     public List<AlertResponse> getActiveAlerts(User owner) {
-        return alertRepository.findByUserId(owner.getId()).stream()
-                .filter(a -> a.getStatus() == Alert.AlertStatus.ACTIVE)
+        return alertRepository.findOpenByUserId(owner.getId()).stream()
+            .map(AlertResponse::fromEntity)
+            .toList();
+    }
+
+    public List<AlertResponse> getAlertsByStatus(User owner, Alert.AlertStatus status) {
+        return alertRepository.findByUserIdAndStatus(owner.getId(), status).stream()
+                .map(AlertResponse::fromEntity)
+                .toList();
+    }
+
+    public List<AlertResponse> getResolvedAlerts(User owner) {
+        return alertRepository.findByUserIdAndStatus(owner.getId(), Alert.AlertStatus.RESOLVED).stream()
                 .map(AlertResponse::fromEntity)
                 .toList();
     }
@@ -143,6 +159,31 @@ public class AlertService {
         log.info("Alert {} resolved by {}", alertId, user.getUsername());
 
         publishAlertUpdate(alert);
+    }
+
+    @Transactional
+    public AlertRule updateAlertRule(Long ruleId, AlertRuleUpdateRequest request, User owner) {
+        AlertRule rule = alertRuleRepository.findById(ruleId)
+                .orElseThrow(() -> new RuntimeException("Alert rule not found"));
+
+        if (!rule.getServer().getOwner().getId().equals(owner.getId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+        rule.setName(request.getName());
+        rule.setDescription(request.getDescription());
+        rule.setMetricType(request.getMetricType());
+        rule.setConditionOperator(request.getConditionOperator());
+        rule.setThresholdValue(request.getThresholdValue());
+        rule.setDurationSeconds(request.getDurationSeconds());
+        rule.setSeverity(request.getSeverity());
+        if (request.getCooldownMinutes() != null) {
+            rule.setCooldownMinutes(request.getCooldownMinutes());
+        }
+
+        AlertRule updatedRule = alertRuleRepository.save(rule);
+        log.info("Updated alert rule: {}", updatedRule.getName());
+        return updatedRule;
     }
 
     private void publishAlertUpdate(Alert alert) {

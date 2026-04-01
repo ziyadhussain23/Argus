@@ -20,11 +20,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Set<String> PUBLIC_AUTH_PATHS = Set.of(
+            "/api/v1/auth/register",
+            "/api/v1/auth/login",
+            "/api/v1/auth/verify-email",
+            "/api/v1/auth/resend-verification",
+            "/api/v1/auth/get-email",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/reset-password",
+            "/api/v1/auth/verify"
+    );
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -77,7 +89,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         // Skip filtering for public endpoints
-        return path.startsWith("/api/v1/auth/") || 
+        return PUBLIC_AUTH_PATHS.contains(path) ||
                path.equals("/api/v1/metrics/ingest") ||
                path.equals("/api/v1/metrics/heartbeat") ||
                path.startsWith("/ws/") ||
