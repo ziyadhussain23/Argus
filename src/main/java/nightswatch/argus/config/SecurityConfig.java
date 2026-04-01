@@ -16,7 +16,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 
 @Configuration
@@ -26,6 +28,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @Value("${CORS_ALLOWED_ORIGINS:}")
+    private String corsAllowedOrigins;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -34,12 +39,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
+        List<String> origins = new ArrayList<>(Arrays.asList(
             "http://localhost:5173",  // Vite dev server
             "http://localhost:3000",  // Alternative frontend port
             "http://127.0.0.1:5173",
             "http://127.0.0.1:3000"
         ));
+        if (corsAllowedOrigins != null && !corsAllowedOrigins.isBlank()) {
+            Arrays.stream(corsAllowedOrigins.split(","))
+                  .map(String::trim)
+                  .filter(s -> !s.isEmpty())
+                  .forEach(origins::add);
+        }
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));

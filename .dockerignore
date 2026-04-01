@@ -1,0 +1,13 @@
+target/
+Argus_Frontend/node_modules/
+Argus_Frontend/dist/
+.idea/
+.vscode/
+*.iml
+*.log
+*.txt
+.env
+.env.*
+Assignment*/
+docs/
+agent/
