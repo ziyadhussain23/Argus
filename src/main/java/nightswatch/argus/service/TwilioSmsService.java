@@ -58,7 +58,15 @@ public class TwilioSmsService implements SmsService {
         if (!isAvailable()) {
             log.warn("Twilio is not available. SMS not sent to: {}", PhoneNumberValidator.mask(phoneNumber));
             smsLog.markFailed("SERVICE_UNAVAILABLE", "Twilio SMS service is not configured or disabled");
-            return smsLogRepository.save(smsLog);
+            smsLogRepository.save(smsLog);
+            // Bug fix (BUG-003): propagate the failure so callers (NotificationService)
+            // can mark the corresponding Notification record as FAILED instead of silently
+            // treating the SMS as sent. Previously this method only returned a failed log.
+            throw new SmsDeliveryException(
+                "Twilio SMS service is not configured or disabled",
+                "SERVICE_UNAVAILABLE",
+                phoneNumber
+            );
         }
 
         try {
