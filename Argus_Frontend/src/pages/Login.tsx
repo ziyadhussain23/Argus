@@ -84,17 +84,24 @@ export default function Login() {
         navigate('/dashboard');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Invalid credentials';
-      
+      const errorMessage = error instanceof Error ? error.message : '';
+
       // Check if error is about email verification
-      if (errorMessage.toLowerCase().includes('email not verified') || 
+      if (errorMessage.toLowerCase().includes('email not verified') ||
           errorMessage.toLowerCase().includes('verify your email')) {
         setShowVerificationError(true);
       } else {
+        // Bug fix (BUG-002): always show a non-empty, useful description and cap
+        // toast duration so it doesn't linger on screen.
+        const description =
+          errorMessage && errorMessage.trim().length > 0
+            ? errorMessage
+            : 'Invalid email/username or password.';
         toast({
           title: 'Login failed',
-          description: 'Invalid email/username or password.',
+          description,
           variant: 'destructive',
+          duration: 4000,
         });
       }
     } finally {
