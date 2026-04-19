@@ -61,7 +61,6 @@ public class SmsWebhookController {
     public ResponseEntity<String> handleInboundSms(@RequestParam Map<String, String> params) {
         String from = params.get("From");
         String body = params.get("Body");
-        String messageSid = params.get("MessageSid");
 
         log.info("Received inbound SMS from: {} - Body: {}", from, body);
 

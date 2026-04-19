@@ -31,7 +31,8 @@ public class NotificationPreferenceController {
     private final PhoneVerificationService phoneVerificationService;
     private final SmsService smsService;
     private final SmsRateLimiter smsRateLimiter;
-    private final UserService userService;
+    @SuppressWarnings("unused")
+    private final UserService userService; // reserved for future per-user lookups
     private final SmsLogRepository smsLogRepository;
 
     /**
