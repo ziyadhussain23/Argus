@@ -52,15 +52,15 @@ public class Server {
     private User owner;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Metric> metrics;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AlertRule> alertRules;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Alert> alerts;
 
     public enum ServerStatus {

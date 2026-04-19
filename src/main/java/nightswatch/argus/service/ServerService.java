@@ -129,8 +129,26 @@ public class ServerService {
             throw new RuntimeException("Access denied");
         }
         
+        Long ownerId = server.getOwner().getId();
+        Long serverId = server.getId();
+        String serverName = server.getName();
+
+        // Bug fix (BUG-001): delete + flush so all child rows (metrics, alerts,
+        // alert_rules, notifications via Alert) are removed in the same transaction
+        // before the response is returned to the client.
         serverRepository.delete(server);
-        log.info("Deleted server: {}", server.getName());
+        serverRepository.flush();
+
+        // Notify connected clients that this server has been removed so cached
+        // server lists / dashboards drop it immediately.
+        Object deletedPayload = java.util.Map.of(
+                "id", serverId,
+                "deleted", true
+        );
+        messagingTemplate.convertAndSend("/topic/servers/" + serverId, deletedPayload);
+        messagingTemplate.convertAndSend("/topic/servers/user/" + ownerId, deletedPayload);
+
+        log.info("Deleted server: {}", serverName);
     }
 
     public String regenerateAgentKey(Long serverId, User owner) {

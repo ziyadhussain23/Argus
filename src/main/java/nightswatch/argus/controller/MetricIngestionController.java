@@ -2,6 +2,7 @@ package nightswatch.argus.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import nightswatch.argus.dto.request.MetricPayload;
 import nightswatch.argus.dto.response.ApiResponse;
 import nightswatch.argus.dto.response.MetricResponse;
@@ -11,6 +12,7 @@ import nightswatch.argus.entity.User;
 import nightswatch.argus.repository.ServerRepository;
 import nightswatch.argus.service.MetricService;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/metrics")
 @RequiredArgsConstructor
+@Slf4j
 public class MetricIngestionController {
 
     private final MetricService metricService;
@@ -38,8 +41,17 @@ public class MetricIngestionController {
         try {
             metricService.ingestMetrics(payload);
             return ResponseEntity.ok(ApiResponse.success("Metrics ingested successfully", null));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (RuntimeException e) {
+            // Bug fix: do not leak internal exception details (stack traces, SQL,
+            // entity names) to unauthenticated agents. Log full detail server-side
+            // and return a generic message + 401 for invalid agent key paths.
+            log.warn("Metric ingestion rejected: {}", e.getMessage());
+            String message = e.getMessage() != null ? e.getMessage() : "";
+            if (message.toLowerCase().contains("invalid agent key")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Invalid agent key"));
+            }
+            return ResponseEntity.badRequest().body(ApiResponse.error("Failed to ingest metrics"));
         }
     }
 

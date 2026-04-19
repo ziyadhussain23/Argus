@@ -54,13 +54,15 @@ const generateWindowsScript = (agentKey: string, serverUrl: string, serverName: 
 # Generated: ${new Date().toISOString()}
 # 
 # INSTRUCTIONS:
-# 1. Save this file as argus-agent.ps1
+# 1. Save this file as argus-agent-windows.ps1
 # 2. Run in PowerShell as Administrator:
-#    powershell -ExecutionPolicy Bypass -File argus-agent.ps1
+#    powershell -ExecutionPolicy Bypass -File argus-agent-windows.ps1
 # 3. Press Ctrl+C to stop monitoring
 
 $ARGUS_SERVER_URL = "${serverUrl.replace(/["`$]/g, '`$&')}"
 $AGENT_KEY = "${agentKey.replace(/["`$]/g, '`$&')}"
+$NET_STATE_FILE = Join-Path $env:TEMP "argus-agent-net-$($AGENT_KEY.Substring(0,[Math]::Min(16,$AGENT_KEY.Length))).state"
+$CPU_NAME = (Get-WmiObject -Class Win32_Processor | Select-Object -First 1 -ExpandProperty Name).Trim()
 
 Write-Host "🚀 Starting Argus Monitoring Agent..."
 Write-Host "📊 Server: $ARGUS_SERVER_URL"
@@ -91,11 +93,25 @@ function Get-DiskUsage {
     return @{ UsedPercent = $usedPercent; TotalMB = $totalMB; AvailableMB = $freeMB }
 }
 
-function Get-NetworkIO {
+function Get-NetworkRate {
     $netAdapters = Get-NetAdapterStatistics | Where-Object { $_.ReceivedBytes -gt 0 }
-    $rxBytes = ($netAdapters | Measure-Object -Property ReceivedBytes -Sum).Sum
-    $txBytes = ($netAdapters | Measure-Object -Property SentBytes -Sum).Sum
-    return @{ RxBytes = $rxBytes; TxBytes = $txBytes }
+    $rxTotal = [int64]((($netAdapters | Measure-Object -Property ReceivedBytes -Sum).Sum))
+    $txTotal = [int64]((($netAdapters | Measure-Object -Property SentBytes     -Sum).Sum))
+    $now = [int64]((Get-Date -UFormat %s))
+    $rxRate = 0; $txRate = 0
+    if (Test-Path $NET_STATE_FILE) {
+        try {
+            $prev = (Get-Content $NET_STATE_FILE -ErrorAction Stop).Trim().Split(' ')
+            $prevT = [int64]$prev[0]; $prevRx = [int64]$prev[1]; $prevTx = [int64]$prev[2]
+            $dt = $now - $prevT
+            if ($dt -gt 0 -and $rxTotal -ge $prevRx -and $txTotal -ge $prevTx) {
+                $rxRate = [int64](($rxTotal - $prevRx) / $dt)
+                $txRate = [int64](($txTotal - $prevTx) / $dt)
+            }
+        } catch { }
+    }
+    "$now $rxTotal $txTotal" | Set-Content -Path $NET_STATE_FILE -Encoding ASCII
+    return @{ RxBytes = $rxRate; TxBytes = $txRate }
 }
 
 function Get-ProcessCount {
@@ -124,7 +140,7 @@ while ($true) {
     $cpu = Get-CpuUsage
     $mem = Get-MemoryUsage
     $disk = Get-DiskUsage
-    $net = Get-NetworkIO
+    $net = Get-NetworkRate
     $procs = Get-ProcessCount
     $load = Get-LoadAverage
     $uptime = Get-Uptime
@@ -133,15 +149,15 @@ while ($true) {
         agentKey = $AGENT_KEY
         timestamp = $timestamp
         metrics = @(
-            @{ type = "CPU_USAGE"; value = $cpu; unit = "%" }
+            @{ type = "CPU_USAGE"; value = $cpu; unit = "%"; additionalInfo = $CPU_NAME }
             @{ type = "MEMORY_USAGE"; value = $mem.UsedPercent; unit = "%" }
             @{ type = "MEMORY_TOTAL"; value = $mem.TotalMB; unit = "MB" }
             @{ type = "MEMORY_AVAILABLE"; value = $mem.AvailableMB; unit = "MB" }
             @{ type = "DISK_USAGE"; value = $disk.UsedPercent; unit = "%" }
             @{ type = "DISK_TOTAL"; value = $disk.TotalMB; unit = "MB" }
             @{ type = "DISK_AVAILABLE"; value = $disk.AvailableMB; unit = "MB" }
-            @{ type = "NETWORK_IN"; value = $net.RxBytes; unit = "bytes" }
-            @{ type = "NETWORK_OUT"; value = $net.TxBytes; unit = "bytes" }
+            @{ type = "NETWORK_IN"; value = $net.RxBytes; unit = "bytes/sec" }
+            @{ type = "NETWORK_OUT"; value = $net.TxBytes; unit = "bytes/sec" }
             @{ type = "PROCESS_COUNT"; value = $procs; unit = "count" }
             @{ type = "LOAD_AVERAGE"; value = $load; unit = "" }
             @{ type = "UPTIME"; value = $uptime; unit = "seconds" }
@@ -162,204 +178,516 @@ while ($true) {
 `;
 };
 
-// Generate macOS/Linux Bash agent script with continuous monitoring
-const generateBashScript = (agentKey: string, serverUrl: string, serverName: string): string => {
-  return `#!/bin/bash
-
+// Generate macOS Bash agent script (Darwin tools only)
+const generateMacOSScript = (agentKey: string, serverUrl: string, serverName: string): string => {
+  return `#!/usr/bin/env bash
 #######################################################
-# ARGUS MONITORING AGENT (Continuous)
+# ARGUS MONITORING AGENT — macOS
 # Server: ${serverName}
 # Generated: ${new Date().toISOString()}
-# 
-# INSTRUCTIONS:
-# 1. Save this file as argus-agent.sh
-# 2. Make executable: chmod +x argus-agent.sh
-# 3. Run: ./argus-agent.sh
-# 4. Press Ctrl+C to stop
+#
+# 1. Save as argus-agent-macos.sh
+# 2. chmod +x argus-agent-macos.sh
+# 3. ./argus-agent-macos.sh   (Ctrl+C to stop)
 #######################################################
+set -u
 
 ARGUS_SERVER_URL='${serverUrl.replace(/'/g, "'\\''")}'
 AGENT_KEY='${agentKey.replace(/'/g, "'\\''")}'
 INTERVAL=60
+NET_STATE_FILE="/tmp/argus-agent-net-\${AGENT_KEY:0:16}.state"
 
-echo "🚀 Starting Argus Monitoring Agent..."
-echo "📊 Server: $ARGUS_SERVER_URL"
-echo "🔑 Agent Key: \${AGENT_KEY:0:20}..."
-echo "⏱️  Interval: $INTERVAL seconds"
-echo "❌ Press Ctrl+C to stop"
-echo "----------------------------------------"
+command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 2; }
 
-# Handle Ctrl+C gracefully
-trap 'echo -e "\\n🛑 Stopping monitoring..."; exit 0' SIGINT SIGTERM
+num() { [[ "\${1:-}" =~ ^-?[0-9]+([.][0-9]+)?$ ]] && echo "$1" || echo 0; }
 
-# Collect CPU Usage
-get_cpu_usage() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        cpu_usage=$(top -l 1 | grep "CPU usage" | awk '{print $3}' | cut -d'%' -f1)
-    else
-        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
-        if [ -z "$cpu_usage" ]; then
-            cpu_usage=$(mpstat 1 1 2>/dev/null | tail -1 | awk '{print 100 - $NF}')
+cpu_model() { sysctl -n machdep.cpu.brand_string 2>/dev/null | tr -d '"' | head -c 120; }
+
+cpu_usage() {
+    top -l 1 -n 0 2>/dev/null | awk -F'[ ,%]+' '/CPU usage/ {
+        for (i=1;i<=NF;i++) if ($i=="idle") { printf "%.2f", 100-$(i-1); exit }
+    }'
+}
+
+memory_info() {
+    local total page_size pf pi psp
+    total=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+    page_size=$(sysctl -n hw.pagesize 2>/dev/null || echo 4096)
+    pf=$(vm_stat  | awk '/Pages free/        {gsub("\\.",""); print $3}'); pf=\${pf:-0}
+    pi=$(vm_stat  | awk '/Pages inactive/    {gsub("\\.",""); print $3}'); pi=\${pi:-0}
+    psp=$(vm_stat | awk '/Pages speculative/ {gsub("\\.",""); print $3}'); psp=\${psp:-0}
+    awk -v t="$total" -v ps="$page_size" -v pf="$pf" -v pi="$pi" -v psp="$psp" 'BEGIN{
+        tm=t/1024/1024; av=(pf+pi+psp)*ps/1024/1024; us=tm-av;
+        if (tm<=0) { print "0 0 0"; exit } printf "%.2f %d %d", us*100/tm, tm, av;
+    }'
+}
+
+disk_info() { df -m / 2>/dev/null | awk 'NR==2{gsub("%","",$5); printf "%.2f %d %d", $5, $2, $4}'; }
+
+network_rate() {
+    local iface rx tx now prev_t prev_rx prev_tx dt din dout
+    iface=$(route -n get default 2>/dev/null | awk '/interface:/ {print $2; exit}')
+    if [ -n "$iface" ]; then
+        read -r rx tx <<< "$(netstat -ibn 2>/dev/null | awk -v i="$iface" '$1==i && $4 ~ /:/ {print $7, $10; exit}')"
+    fi
+    rx=\${rx:-0}; tx=\${tx:-0}
+    now=$(date +%s); din=0; dout=0
+    if [ -r "$NET_STATE_FILE" ]; then
+        read -r prev_t prev_rx prev_tx < "$NET_STATE_FILE"
+        dt=$(( now - prev_t ))
+        if [ "$dt" -gt 0 ] && [ "$rx" -ge "$prev_rx" ] && [ "$tx" -ge "$prev_tx" ]; then
+            din=$(( (rx - prev_rx) / dt ))
+            dout=$(( (tx - prev_tx) / dt ))
         fi
     fi
-    echo "\${cpu_usage:-0}"
+    echo "$now $rx $tx" > "$NET_STATE_FILE"
+    echo "$din $dout"
 }
 
-# Collect Memory Usage
-get_memory_usage() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        total_mem=$(sysctl -n hw.memsize)
-        total_mb=$((total_mem / 1024 / 1024))
-        vm_stat_output=$(vm_stat)
-        pages_free=$(echo "$vm_stat_output" | grep "Pages free" | awk '{print $3}' | tr -d '.')
-        pages_active=$(echo "$vm_stat_output" | grep "Pages active" | awk '{print $3}' | tr -d '.')
-        pages_inactive=$(echo "$vm_stat_output" | grep "Pages inactive" | awk '{print $3}' | tr -d '.')
-        pages_wired=$(echo "$vm_stat_output" | grep "Pages wired down" | awk '{print $4}' | tr -d '.')
-        page_size=$(sysctl -n hw.pagesize)
-        used_pages=$((pages_active + pages_inactive + pages_wired))
-        used_mb=$((used_pages * page_size / 1024 / 1024))
-        available_mb=$((pages_free * page_size / 1024 / 1024))
-        if [ $total_mb -gt 0 ]; then
-            used_percent=$(awk "BEGIN {printf \\"%.2f\\", ($used_mb * 100.0 / $total_mb)}")
-        else
-            used_percent="0"
-        fi
-        echo "$used_percent $total_mb $available_mb"
-    else
-        mem_info=$(free -m | awk 'NR==2{printf "%.2f %d %d", $3*100/$2, $2, $7}')
-        echo "$mem_info"
-    fi
+process_count() { echo "$(($(ps -A 2>/dev/null | wc -l | awk '{print $1}') - 1))"; }
+load_average() { sysctl -n vm.loadavg 2>/dev/null | awk '{gsub("[{}]",""); print $1}'; }
+uptime_seconds() {
+    local boot
+    boot=$(sysctl -n kern.boottime 2>/dev/null | awk -F'[ ,]+' '{for(i=1;i<=NF;i++) if($i=="sec"){print $(i+2); exit}}')
+    [ -n "$boot" ] && [ "$boot" -gt 0 ] && echo $(($(date +%s) - boot)) || echo 0
 }
 
-# Collect Disk Usage
-get_disk_usage() {
-    disk_info=$(df -m / | awk 'NR==2{gsub("%",""); printf "%.2f %d %d", $5, $2, $4}')
-    echo "$disk_info"
-}
-
-# Collect Network I/O
-get_network_io() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        net_stats=$(netstat -ib | grep -v "Name" | awk '{if ($1 !~ /lo/) {rx+=$7; tx+=$10}} END {print rx, tx}')
-        echo "\${net_stats:-0 0}"
-    else
-        default_iface=$(ip route | grep default | awk '{print $5}' | head -1)
-        if [ -n "$default_iface" ]; then
-            rx_bytes=$(cat /sys/class/net/$default_iface/statistics/rx_bytes 2>/dev/null || echo "0")
-            tx_bytes=$(cat /sys/class/net/$default_iface/statistics/tx_bytes 2>/dev/null || echo "0")
-            echo "$rx_bytes $tx_bytes"
-        else
-            echo "0 0"
-        fi
-    fi
-}
-
-# Collect Process Count
-get_process_count() {
-    ps aux | wc -l
-}
-
-# Collect Load Average
-get_load_average() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sysctl -n vm.loadavg | awk '{print $2}'
-    else
-        cat /proc/loadavg | awk '{print $1}'
-    fi
-}
-
-# Collect Uptime
-get_uptime() {
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        boot_time=$(sysctl -n kern.boottime | awk '{print $4}' | tr -d ',')
-        current_time=$(date +%s)
-        uptime_sec=$((current_time - boot_time))
-        echo "$uptime_sec"
-    else
-        cat /proc/uptime | awk '{print $1}'
-    fi
-}
-
-# Send metrics once
-send_metrics() {
-    cpu_usage=$(get_cpu_usage)
-    
-    mem_info=$(get_memory_usage)
-    mem_usage=$(echo $mem_info | awk '{print $1}')
-    mem_total=$(echo $mem_info | awk '{print $2}')
-    mem_available=$(echo $mem_info | awk '{print $3}')
-    
-    disk_info=$(get_disk_usage)
-    disk_usage=$(echo $disk_info | awk '{print $1}')
-    disk_total=$(echo $disk_info | awk '{print $2}')
-    disk_available=$(echo $disk_info | awk '{print $3}')
-    
-    network_io=$(get_network_io)
-    net_in=$(echo $network_io | awk '{print $1}')
-    net_out=$(echo $network_io | awk '{print $2}')
-    
-    process_count=$(get_process_count)
-    load_avg=$(get_load_average)
-    uptime=$(get_uptime)
-    
-    timestamp=$(($(date +%s) * 1000))
-    
-    json_payload=$(cat <<EOF
+send_once() {
+    local cpu mu mt ma du dt da nin nout procs load up ts model
+    cpu=$(num "$(cpu_usage)")
+    model=$(cpu_model)
+    read -r mu mt ma <<< "$(memory_info)"
+    read -r du dt da <<< "$(disk_info)"
+    read -r nin nout <<< "$(network_rate)"
+    procs=$(num "$(process_count)"); load=$(num "$(load_average)"); up=$(num "$(uptime_seconds)")
+    ts=$(($(date +%s) * 1000))
+    cat <<EOF | curl -sS --connect-timeout 5 --max-time 15 \\
+        -H "Content-Type: application/json" -X POST -d @- \\
+        "$ARGUS_SERVER_URL/api/v1/metrics/ingest"
 {
-    "agentKey": "$AGENT_KEY",
-    "timestamp": $timestamp,
-    "metrics": [
-        {"type": "CPU_USAGE", "value": $cpu_usage, "unit": "%"},
-        {"type": "MEMORY_USAGE", "value": $mem_usage, "unit": "%"},
-        {"type": "MEMORY_TOTAL", "value": $mem_total, "unit": "MB"},
-        {"type": "MEMORY_AVAILABLE", "value": $mem_available, "unit": "MB"},
-        {"type": "DISK_USAGE", "value": $disk_usage, "unit": "%"},
-        {"type": "DISK_TOTAL", "value": $disk_total, "unit": "MB"},
-        {"type": "DISK_AVAILABLE", "value": $disk_available, "unit": "MB"},
-        {"type": "NETWORK_IN", "value": $net_in, "unit": "bytes"},
-        {"type": "NETWORK_OUT", "value": $net_out, "unit": "bytes"},
-        {"type": "PROCESS_COUNT", "value": $process_count, "unit": "count"},
-        {"type": "LOAD_AVERAGE", "value": $load_avg, "unit": ""},
-        {"type": "UPTIME", "value": $uptime, "unit": "seconds"}
-    ]
+  "agentKey": "$AGENT_KEY",
+  "timestamp": $ts,
+  "metrics": [
+    {"type":"CPU_USAGE","value":$cpu,"unit":"%","additionalInfo":"$model"},
+    {"type":"MEMORY_USAGE","value":$(num "$mu"),"unit":"%"},
+    {"type":"MEMORY_TOTAL","value":$(num "$mt"),"unit":"MB"},
+    {"type":"MEMORY_AVAILABLE","value":$(num "$ma"),"unit":"MB"},
+    {"type":"DISK_USAGE","value":$(num "$du"),"unit":"%"},
+    {"type":"DISK_TOTAL","value":$(num "$dt"),"unit":"MB"},
+    {"type":"DISK_AVAILABLE","value":$(num "$da"),"unit":"MB"},
+    {"type":"NETWORK_IN","value":$(num "$nin"),"unit":"bytes/sec"},
+    {"type":"NETWORK_OUT","value":$(num "$nout"),"unit":"bytes/sec"},
+    {"type":"PROCESS_COUNT","value":$procs,"unit":"count"},
+    {"type":"LOAD_AVERAGE","value":$load,"unit":""},
+    {"type":"UPTIME","value":$up,"unit":"seconds"}
+  ]
 }
 EOF
-)
-    
-    response=$(curl -s -X POST \\
-        -H "Content-Type: application/json" \\
-        -d "$json_payload" \\
-        "$ARGUS_SERVER_URL/api/v1/metrics/ingest" 2>&1)
-    
-    if echo "$response" | grep -q '"success":true'; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Metrics sent successfully"
-    else
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ❌ Failed: $response" >&2
-    fi
 }
 
-# Main loop - runs forever until Ctrl+C
-run_count=0
+trap 'echo; echo "Stopping..."; exit 0' INT TERM
+echo "Argus macOS agent — every \${INTERVAL}s. Ctrl+C to stop."
 while true; do
-    run_count=$((run_count + 1))
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Run #$run_count - Sending metrics..."
-    send_metrics
-    echo "💤 Waiting $INTERVAL seconds..."
-    echo "----------------------------------------"
+    out=$(send_once 2>&1)
+    if echo "$out" | grep -q '"success":true'; then
+        echo "[$(date '+%F %T')] OK"
+    else
+        echo "[$(date '+%F %T')] FAIL: $out" >&2
+    fi
     sleep $INTERVAL
 done
 `;
 };
 
-// Generate OS-specific agent script
+// Generate Debian/Ubuntu Bash agent script (apt-family)
+const generateDebianScript = (agentKey: string, serverUrl: string, serverName: string, distro: string): string => {
+  return `#!/usr/bin/env bash
+#######################################################
+# ARGUS MONITORING AGENT — ${distro}
+# Server: ${serverName}
+# Generated: ${new Date().toISOString()}
+#
+# 1. Save as argus-agent.sh
+# 2. chmod +x argus-agent.sh
+# 3. ./argus-agent.sh   (Ctrl+C to stop)
+#
+# Required: curl  (sudo apt install -y curl)
+#######################################################
+set -u
+
+ARGUS_SERVER_URL='${serverUrl.replace(/'/g, "'\\''")}'
+AGENT_KEY='${agentKey.replace(/'/g, "'\\''")}'
+INTERVAL=60
+
+command -v curl >/dev/null 2>&1 || { echo "curl is required (sudo apt install -y curl)" >&2; exit 2; }
+
+num() { [[ "\${1:-}" =~ ^-?[0-9]+([.][0-9]+)?$ ]] && echo "$1" || echo 0; }
+
+NET_STATE_FILE="/tmp/argus-agent-net-\${AGENT_KEY:0:16}.state"
+cpu_model() { awk -F: '/^model name/{gsub(/^ +/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null | tr -d '"' | head -c 120; }
+
+cpu_usage() {
+    local idle
+    idle=$(top -bn1 2>/dev/null | grep -m1 "Cpu(s)" \\
+        | awk -F'[, ]+' '{ for (i=1;i<=NF;i++) if ($i ~ /id$/) { print $(i-1); exit } }')
+    [ -n "$idle" ] && awk -v i="$idle" 'BEGIN{ printf "%.2f", 100 - i }' || echo 0
+}
+
+memory_info() {
+    free -m 2>/dev/null | awk 'NR==2{ if ($2>0) printf "%.2f %d %d", $3*100/$2, $2, $7; else print "0 0 0" }'
+}
+
+disk_info() { df -m / 2>/dev/null | awk 'NR==2{gsub("%","",$5); printf "%.2f %d %d", $5, $2, $4}'; }
+
+network_rate() {
+    local iface rx tx now prev_t prev_rx prev_tx dt din dout
+    iface=$(ip route 2>/dev/null | awk '/^default/ {print $5; exit}')
+    if [ -n "$iface" ] && [ -r "/sys/class/net/$iface/statistics/rx_bytes" ]; then
+        rx=$(cat "/sys/class/net/$iface/statistics/rx_bytes")
+        tx=$(cat "/sys/class/net/$iface/statistics/tx_bytes")
+    fi
+    rx=\${rx:-0}; tx=\${tx:-0}
+    now=$(date +%s); din=0; dout=0
+    if [ -r "$NET_STATE_FILE" ]; then
+        read -r prev_t prev_rx prev_tx < "$NET_STATE_FILE"
+        dt=$(( now - prev_t ))
+        if [ "$dt" -gt 0 ] && [ "$rx" -ge "$prev_rx" ] && [ "$tx" -ge "$prev_tx" ]; then
+            din=$(( (rx - prev_rx) / dt ))
+            dout=$(( (tx - prev_tx) / dt ))
+        fi
+    fi
+    echo "$now $rx $tx" > "$NET_STATE_FILE"
+    echo "$din $dout"
+}
+
+process_count() { ps -e --no-headers 2>/dev/null | wc -l; }
+load_average() { awk '{print $1}' /proc/loadavg 2>/dev/null || echo 0; }
+uptime_seconds() { awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0; }
+
+send_once() {
+    local cpu mu mt ma du dt da nin nout procs load up ts model
+    cpu=$(num "$(cpu_usage)")
+    model=$(cpu_model)
+    read -r mu mt ma <<< "$(memory_info)"
+    read -r du dt da <<< "$(disk_info)"
+    read -r nin nout <<< "$(network_rate)"
+    procs=$(num "$(process_count)"); load=$(num "$(load_average)"); up=$(num "$(uptime_seconds)")
+    ts=$(($(date +%s) * 1000))
+    cat <<EOF | curl -sS --connect-timeout 5 --max-time 15 \\
+        -H "Content-Type: application/json" -X POST -d @- \\
+        "$ARGUS_SERVER_URL/api/v1/metrics/ingest"
+{
+  "agentKey": "$AGENT_KEY",
+  "timestamp": $ts,
+  "metrics": [
+    {"type":"CPU_USAGE","value":$cpu,"unit":"%","additionalInfo":"$model"},
+    {"type":"MEMORY_USAGE","value":$(num "$mu"),"unit":"%"},
+    {"type":"MEMORY_TOTAL","value":$(num "$mt"),"unit":"MB"},
+    {"type":"MEMORY_AVAILABLE","value":$(num "$ma"),"unit":"MB"},
+    {"type":"DISK_USAGE","value":$(num "$du"),"unit":"%"},
+    {"type":"DISK_TOTAL","value":$(num "$dt"),"unit":"MB"},
+    {"type":"DISK_AVAILABLE","value":$(num "$da"),"unit":"MB"},
+    {"type":"NETWORK_IN","value":$(num "$nin"),"unit":"bytes/sec"},
+    {"type":"NETWORK_OUT","value":$(num "$nout"),"unit":"bytes/sec"},
+    {"type":"PROCESS_COUNT","value":$procs,"unit":"count"},
+    {"type":"LOAD_AVERAGE","value":$load,"unit":""},
+    {"type":"UPTIME","value":$up,"unit":"seconds"}
+  ]
+}
+EOF
+}
+
+trap 'echo; echo "Stopping..."; exit 0' INT TERM
+echo "Argus ${distro} agent — every \${INTERVAL}s. Ctrl+C to stop."
+while true; do
+    out=$(send_once 2>&1)
+    if echo "$out" | grep -q '"success":true'; then
+        echo "[$(date '+%F %T')] OK"
+    else
+        echo "[$(date '+%F %T')] FAIL: $out" >&2
+    fi
+    sleep $INTERVAL
+done
+`;
+};
+
+// Generate RHEL/CentOS/Amazon Linux Bash agent script (rpm-family)
+const generateRhelScript = (agentKey: string, serverUrl: string, serverName: string, distro: string): string => {
+  return `#!/usr/bin/env bash
+#######################################################
+# ARGUS MONITORING AGENT — ${distro}
+# Server: ${serverName}
+# Generated: ${new Date().toISOString()}
+#
+# 1. Save as argus-agent.sh
+# 2. chmod +x argus-agent.sh
+# 3. ./argus-agent.sh   (Ctrl+C to stop)
+#
+# Required: curl, iproute, procps-ng
+#   sudo yum install -y curl iproute procps-ng   (CentOS 7 / RHEL 7)
+#   sudo dnf install -y curl iproute procps-ng   (CentOS 8+ / RHEL 8+ / Amazon Linux 2023)
+#######################################################
+set -u
+
+ARGUS_SERVER_URL='${serverUrl.replace(/'/g, "'\\''")}'
+AGENT_KEY='${agentKey.replace(/'/g, "'\\''")}'
+INTERVAL=60
+
+command -v curl >/dev/null 2>&1 || { echo "curl is required (sudo yum install -y curl)" >&2; exit 2; }
+
+num() { [[ "\${1:-}" =~ ^-?[0-9]+([.][0-9]+)?$ ]] && echo "$1" || echo 0; }
+
+NET_STATE_FILE="/tmp/argus-agent-net-\${AGENT_KEY:0:16}.state"
+cpu_model() { awk -F: '/^model name/{gsub(/^ +/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null | tr -d '"' | head -c 120; }
+
+cpu_usage() {
+    local idle
+    idle=$(top -bn1 2>/dev/null | grep -m1 -E "Cpu\\(s\\)" \\
+        | awk -F'[, ]+' '{ for (i=1;i<=NF;i++) if ($i ~ /id$/) { print $(i-1); exit } }')
+    if [ -n "$idle" ]; then
+        awk -v i="$idle" 'BEGIN{ printf "%.2f", 100 - i }'
+    elif command -v mpstat >/dev/null 2>&1; then
+        mpstat 1 1 2>/dev/null | awk '/Average/ {printf "%.2f", 100 - $NF; exit}'
+    else
+        echo 0
+    fi
+}
+
+memory_info() {
+    free -m 2>/dev/null | awk 'NR==2{
+        avail = ($7 != "" ? $7 : ($2 - $3));
+        if ($2>0) printf "%.2f %d %d", $3*100/$2, $2, avail;
+        else      print  "0 0 0";
+    }'
+}
+
+disk_info() { df -m / 2>/dev/null | awk 'NR==2{gsub("%","",$5); printf "%.2f %d %d", $5, $2, $4}'; }
+
+network_rate() {
+    local iface rx tx now prev_t prev_rx prev_tx dt din dout
+    iface=$(ip route 2>/dev/null | awk '/^default/ {print $5; exit}')
+    if [ -n "$iface" ] && [ -r "/sys/class/net/$iface/statistics/rx_bytes" ]; then
+        rx=$(cat "/sys/class/net/$iface/statistics/rx_bytes")
+        tx=$(cat "/sys/class/net/$iface/statistics/tx_bytes")
+    fi
+    rx=\${rx:-0}; tx=\${tx:-0}
+    now=$(date +%s); din=0; dout=0
+    if [ -r "$NET_STATE_FILE" ]; then
+        read -r prev_t prev_rx prev_tx < "$NET_STATE_FILE"
+        dt=$(( now - prev_t ))
+        if [ "$dt" -gt 0 ] && [ "$rx" -ge "$prev_rx" ] && [ "$tx" -ge "$prev_tx" ]; then
+            din=$(( (rx - prev_rx) / dt ))
+            dout=$(( (tx - prev_tx) / dt ))
+        fi
+    fi
+    echo "$now $rx $tx" > "$NET_STATE_FILE"
+    echo "$din $dout"
+}
+
+process_count() {
+    if ps -e --no-headers >/dev/null 2>&1; then
+        ps -e --no-headers | wc -l
+    else
+        echo "$(($(ps -e | wc -l) - 1))"
+    fi
+}
+load_average() { awk '{print $1}' /proc/loadavg 2>/dev/null || echo 0; }
+uptime_seconds() { awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0; }
+
+send_once() {
+    local cpu mu mt ma du dt da nin nout procs load up ts model
+    cpu=$(num "$(cpu_usage)")
+    model=$(cpu_model)
+    read -r mu mt ma <<< "$(memory_info)"
+    read -r du dt da <<< "$(disk_info)"
+    read -r nin nout <<< "$(network_rate)"
+    procs=$(num "$(process_count)"); load=$(num "$(load_average)"); up=$(num "$(uptime_seconds)")
+    ts=$(($(date +%s) * 1000))
+    cat <<EOF | curl -sS --connect-timeout 5 --max-time 15 \\
+        -H "Content-Type: application/json" -X POST -d @- \\
+        "$ARGUS_SERVER_URL/api/v1/metrics/ingest"
+{
+  "agentKey": "$AGENT_KEY",
+  "timestamp": $ts,
+  "metrics": [
+    {"type":"CPU_USAGE","value":$cpu,"unit":"%","additionalInfo":"$model"},
+    {"type":"MEMORY_USAGE","value":$(num "$mu"),"unit":"%"},
+    {"type":"MEMORY_TOTAL","value":$(num "$mt"),"unit":"MB"},
+    {"type":"MEMORY_AVAILABLE","value":$(num "$ma"),"unit":"MB"},
+    {"type":"DISK_USAGE","value":$(num "$du"),"unit":"%"},
+    {"type":"DISK_TOTAL","value":$(num "$dt"),"unit":"MB"},
+    {"type":"DISK_AVAILABLE","value":$(num "$da"),"unit":"MB"},
+    {"type":"NETWORK_IN","value":$(num "$nin"),"unit":"bytes/sec"},
+    {"type":"NETWORK_OUT","value":$(num "$nout"),"unit":"bytes/sec"},
+    {"type":"PROCESS_COUNT","value":$procs,"unit":"count"},
+    {"type":"LOAD_AVERAGE","value":$load,"unit":""},
+    {"type":"UPTIME","value":$up,"unit":"seconds"}
+  ]
+}
+EOF
+}
+
+trap 'echo; echo "Stopping..."; exit 0' INT TERM
+echo "Argus ${distro} agent — every \${INTERVAL}s. Ctrl+C to stop."
+while true; do
+    out=$(send_once 2>&1)
+    if echo "$out" | grep -q '"success":true'; then
+        echo "[$(date '+%F %T')] OK"
+    else
+        echo "[$(date '+%F %T')] FAIL: $out" >&2
+    fi
+    sleep $INTERVAL
+done
+`;
+};
+
+// Generate Generic Linux Bash agent script — reads everything from /proc and /sys
+// (works on Alpine, Arch, openSUSE, BusyBox, minimal containers, etc.)
+const generateGenericLinuxScript = (agentKey: string, serverUrl: string, serverName: string): string => {
+  return `#!/usr/bin/env bash
+#######################################################
+# ARGUS MONITORING AGENT — Generic Linux
+# Server: ${serverName}
+# Generated: ${new Date().toISOString()}
+#
+# Reads everything from /proc and /sys directly so it works
+# on minimal images that don't have top, free, ip, etc.
+#
+# 1. Save as argus-agent.sh
+# 2. chmod +x argus-agent.sh
+# 3. ./argus-agent.sh   (Ctrl+C to stop)
+#######################################################
+set -u
+
+ARGUS_SERVER_URL='${serverUrl.replace(/'/g, "'\\''")}'
+AGENT_KEY='${agentKey.replace(/'/g, "'\\''")}'
+INTERVAL=60
+NET_STATE_FILE="/tmp/argus-agent-net-\${AGENT_KEY:0:16}.state"
+
+command -v curl >/dev/null 2>&1 || { echo "curl is required" >&2; exit 2; }
+
+num() { [[ "\${1:-}" =~ ^-?[0-9]+([.][0-9]+)?$ ]] && echo "$1" || echo 0; }
+
+cpu_model() { awk -F: '/^model name/{gsub(/^ +/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null | tr -d '"' | head -c 120; }
+
+cpu_usage() {
+    read -r _ u1 n1 s1 i1 w1 q1 sq1 _ < /proc/stat
+    sleep 1
+    read -r _ u2 n2 s2 i2 w2 q2 sq2 _ < /proc/stat
+    awk -v u1="$u1" -v n1="$n1" -v s1="$s1" -v i1="$i1" -v w1="$w1" -v q1="$q1" -v sq1="$sq1" \\
+        -v u2="$u2" -v n2="$n2" -v s2="$s2" -v i2="$i2" -v w2="$w2" -v q2="$q2" -v sq2="$sq2" 'BEGIN{
+        a=u1+n1+s1+i1+w1+q1+sq1; b=u2+n2+s2+i2+w2+q2+sq2;
+        id1=i1+w1; id2=i2+w2; td=b-a; idd=id2-id1;
+        if (td<=0) { print 0; exit } printf "%.2f", (1 - idd/td)*100;
+    }'
+}
+
+memory_info() {
+    awk '/^MemTotal:/ {t=$2/1024} /^MemAvailable:/ {a=$2/1024}
+        END { if (t<=0) {print "0 0 0"; exit} u=t-a; printf "%.2f %d %d", u*100/t, t, a }' /proc/meminfo 2>/dev/null
+}
+
+disk_info() { df -m / 2>/dev/null | awk 'NR==2{gsub("%","",$5); printf "%.2f %d %d", $5, $2, $4}'; }
+
+network_rate() {
+    local d iface rx tx now prev_t prev_rx prev_tx dt din dout
+    rx=0; tx=0
+    for d in /sys/class/net/*; do
+        iface=$(basename "$d")
+        [ "$iface" = "lo" ] && continue
+        if [ -r "$d/statistics/rx_bytes" ]; then
+            rx=$(cat "$d/statistics/rx_bytes"); tx=$(cat "$d/statistics/tx_bytes"); break
+        fi
+    done
+    rx=\${rx:-0}; tx=\${tx:-0}
+    now=$(date +%s); din=0; dout=0
+    if [ -r "$NET_STATE_FILE" ]; then
+        read -r prev_t prev_rx prev_tx < "$NET_STATE_FILE"
+        dt=$(( now - prev_t ))
+        if [ "$dt" -gt 0 ] && [ "$rx" -ge "$prev_rx" ] && [ "$tx" -ge "$prev_tx" ]; then
+            din=$(( (rx - prev_rx) / dt ))
+            dout=$(( (tx - prev_tx) / dt ))
+        fi
+    fi
+    echo "$now $rx $tx" > "$NET_STATE_FILE"
+    echo "$din $dout"
+}
+
+process_count() {
+    local n=0
+    for d in /proc/[0-9]*; do n=$((n+1)); done
+    echo "$n"
+}
+load_average() { awk '{print $1}' /proc/loadavg 2>/dev/null || echo 0; }
+uptime_seconds() { awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0; }
+
+send_once() {
+    local cpu mu mt ma du dt da nin nout procs load up ts model
+    cpu=$(num "$(cpu_usage)")
+    model=$(cpu_model)
+    read -r mu mt ma <<< "$(memory_info)"
+    read -r du dt da <<< "$(disk_info)"
+    read -r nin nout <<< "$(network_rate)"
+    procs=$(num "$(process_count)"); load=$(num "$(load_average)"); up=$(num "$(uptime_seconds)")
+    ts=$(($(date +%s) * 1000))
+    cat <<EOF | curl -sS --connect-timeout 5 --max-time 15 \\
+        -H "Content-Type: application/json" -X POST -d @- \\
+        "$ARGUS_SERVER_URL/api/v1/metrics/ingest"
+{
+  "agentKey": "$AGENT_KEY",
+  "timestamp": $ts,
+  "metrics": [
+    {"type":"CPU_USAGE","value":$cpu,"unit":"%","additionalInfo":"$model"},
+    {"type":"MEMORY_USAGE","value":$(num "$mu"),"unit":"%"},
+    {"type":"MEMORY_TOTAL","value":$(num "$mt"),"unit":"MB"},
+    {"type":"MEMORY_AVAILABLE","value":$(num "$ma"),"unit":"MB"},
+    {"type":"DISK_USAGE","value":$(num "$du"),"unit":"%"},
+    {"type":"DISK_TOTAL","value":$(num "$dt"),"unit":"MB"},
+    {"type":"DISK_AVAILABLE","value":$(num "$da"),"unit":"MB"},
+    {"type":"NETWORK_IN","value":$(num "$nin"),"unit":"bytes/sec"},
+    {"type":"NETWORK_OUT","value":$(num "$nout"),"unit":"bytes/sec"},
+    {"type":"PROCESS_COUNT","value":$procs,"unit":"count"},
+    {"type":"LOAD_AVERAGE","value":$load,"unit":""},
+    {"type":"UPTIME","value":$up,"unit":"seconds"}
+  ]
+}
+EOF
+}
+
+trap 'echo; echo "Stopping..."; exit 0' INT TERM
+echo "Argus generic Linux agent — every \${INTERVAL}s. Ctrl+C to stop."
+while true; do
+    out=$(send_once 2>&1)
+    if echo "$out" | grep -q '"success":true'; then
+        echo "[$(date '+%F %T')] OK"
+    else
+        echo "[$(date '+%F %T')] FAIL: $out" >&2
+    fi
+    sleep $INTERVAL
+done
+`;
+};
+
+// Generate OS-specific agent script. Each OS in the dropdown gets a dedicated
+// script (no runtime OS branching) so the file the user downloads is tailored.
 const generateAgentScript = (agentKey: string, os: string, serverName: string): string => {
   const serverUrl = getServerUrl();
-  
-  if (os.toLowerCase().includes('windows')) {
+  const o = (os || '').toLowerCase();
+
+  if (o.includes('windows')) {
     return generateWindowsScript(agentKey, serverUrl, serverName);
-  } else {
-    return generateBashScript(agentKey, serverUrl, serverName);
   }
+  if (o.includes('macos') || o.includes('darwin') || o === 'mac') {
+    return generateMacOSScript(agentKey, serverUrl, serverName);
+  }
+  if (o.includes('ubuntu') || o.includes('debian')) {
+    return generateDebianScript(agentKey, serverUrl, serverName, os);
+  }
+  if (o.includes('centos') || o.includes('rhel') || o.includes('amazon linux') || o.includes('red hat')) {
+    return generateRhelScript(agentKey, serverUrl, serverName, os);
+  }
+  // Other Linux / unknown -> portable /proc-based script
+  return generateGenericLinuxScript(agentKey, serverUrl, serverName);
 };
 
 export default function AddServer() {
@@ -430,8 +758,20 @@ export default function AddServer() {
   const downloadScript = () => {
     if (createdServer?.agentKey) {
       const script = generateAgentScript(createdServer.agentKey, operatingSystem, createdServer.name);
-      const isWindows = operatingSystem.toLowerCase().includes('windows');
-      const filename = isWindows ? 'argus-agent.ps1' : 'argus-agent.sh';
+      const o = (operatingSystem || '').toLowerCase();
+      const isWindows = o.includes('windows');
+      let filename = 'argus-agent.sh';
+      if (isWindows) {
+        filename = 'argus-agent-windows.ps1';
+      } else if (o.includes('macos') || o.includes('darwin')) {
+        filename = 'argus-agent-macos.sh';
+      } else if (o.includes('ubuntu') || o.includes('debian')) {
+        filename = 'argus-agent-debian.sh';
+      } else if (o.includes('centos') || o.includes('rhel') || o.includes('amazon linux') || o.includes('red hat')) {
+        filename = 'argus-agent-rhel.sh';
+      } else {
+        filename = 'argus-agent-linux.sh';
+      }
       const mimeType = isWindows ? 'text/plain' : 'application/x-sh';
       
       const blob = new Blob([script], { type: mimeType });
@@ -453,17 +793,36 @@ export default function AddServer() {
 
   // Get OS-specific instructions for running the script
   const getScriptInstructions = (): string => {
-    const isWindows = operatingSystem.toLowerCase().includes('windows');
-    if (isWindows) {
+    const o = (operatingSystem || '').toLowerCase();
+    if (o.includes('windows')) {
       return `# Windows PowerShell
-# 1. Save as argus-agent.ps1
-# 2. Run: powershell -ExecutionPolicy Bypass -File argus-agent.ps1`;
-    } else {
-      return `# macOS / Linux
+# 1. Save as argus-agent-windows.ps1
+# 2. Run: powershell -ExecutionPolicy Bypass -File argus-agent-windows.ps1`;
+    }
+    if (o.includes('macos') || o.includes('darwin')) {
+      return `# macOS
+# 1. Save as argus-agent-macos.sh
+# 2. chmod +x argus-agent-macos.sh
+# 3. ./argus-agent-macos.sh`;
+    }
+    if (o.includes('ubuntu') || o.includes('debian')) {
+      return `# Debian / Ubuntu
+# (Install curl if needed: sudo apt install -y curl)
 # 1. Save as argus-agent.sh
 # 2. chmod +x argus-agent.sh
 # 3. ./argus-agent.sh`;
     }
+    if (o.includes('centos') || o.includes('rhel') || o.includes('amazon linux') || o.includes('red hat')) {
+      return `# RHEL / CentOS / Amazon Linux
+# (Install curl if needed: sudo yum install -y curl   or   sudo dnf install -y curl)
+# 1. Save as argus-agent.sh
+# 2. chmod +x argus-agent.sh
+# 3. ./argus-agent.sh`;
+    }
+    return `# Linux (generic)
+# 1. Save as argus-agent.sh
+# 2. chmod +x argus-agent.sh
+# 3. ./argus-agent.sh`;
   };
 
   if (createdServer) {

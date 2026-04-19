@@ -1213,7 +1213,7 @@ export default function ServerDetail() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Processor</span>
-                  <span className="text-foreground font-medium">{server.operatingSystem || 'N/A'}</span>
+                  <span className="text-foreground font-medium">{latestMetrics['CPU_USAGE']?.additionalInfo || 'Detecting...'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Current Usage</span>
